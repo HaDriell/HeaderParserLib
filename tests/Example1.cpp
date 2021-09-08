@@ -5,6 +5,7 @@
 #include "HeaderParserLib/Tokenizer.h"
 
 std::string input = R"(
+    /* comment */
     #pragma once
     #include <something>
     #ifdef SOMETHING

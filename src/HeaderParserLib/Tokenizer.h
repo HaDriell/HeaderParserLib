@@ -6,7 +6,7 @@
 
 #include "HeaderParserLib/Token.h"
 
-class Tokenizer final
+class Tokenizer
 {
 public:
     Tokenizer(std::string& input);
@@ -19,12 +19,14 @@ public:
     bool IsEOF();
 
 private:
+    //Utility functions
     void Reset(size_t position);
-    void SkipWhitespaces();
-    bool Expect(const std::string& sequence);
-    bool ExpectWord(const std::string& word);
-    bool ReadUntilExpect(const std::string& sequence, std::string& value);
+    bool Read(std::string& value, size_t count);
+    bool ReadUntilSequence(const std::string& sequence, std::string& value);
+    bool NextSequence(const std::string& sequence);
+    bool NextWord(const std::string& word);
 
+    //Token functions
     bool NextComment(Token& token);
     bool NextBooleanLiteral(Token& token);
     bool NextIntegerLiteral(Token& token);
