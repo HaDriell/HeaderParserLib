@@ -1,29 +1,8 @@
 #include <iostream>
 #include <string>
-#include <sstream>
 
 #include "HeaderParserLib/Tokenizer.h"
-
-std::string input = R"(
-    /* comment */
-    #pragma once
-    #include <something>
-    #ifdef SOMETHING
-    #include "HeaderLib/Tokenizer.h"
-    #endif
-
-    ICI /*
-        multiline
-        comment !
-    */
-
-    CLASS() // Single line comment ;)
-    class Token {
-    public:
-        PROPERTY()
-        uint32_t m_PropertyName = 32;
-    };
-)";
+#include "ExampleUtils.h"
 
 class TokenLogger : public TokenHandler
 {
@@ -35,17 +14,27 @@ public:
     void Handle(const StringLiteralToken& token)    { std::cout << "String( " << token.Value << " )\n"; }
 };
 
-
 int main()
 {
+    std::string input;
+    LoadFile("Example.cpp.input", input);
+
     Tokenizer tokenizer(input);
     TokenLogger logger;
 
     Token token;
+
     std::cout << "\n\n### Token Stream Begins\n\n";
+
     while (tokenizer.NextToken(token))
     {
         logger.HandleToken(token);
     }
+
+    if (tokenizer.HasError())
+    {
+        std::cout << tokenizer.GetErrorMessage();
+    }
+
     std::cout << "\n\n### Token Stream Ends\n\n";
 }

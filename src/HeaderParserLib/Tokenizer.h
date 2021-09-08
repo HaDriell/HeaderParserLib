@@ -16,9 +16,15 @@ public:
     Tokenizer(Tokenizer&& other) = delete;
 
     bool NextToken(Token& token);
-    bool IsEOF();
+
+    void ClearError();
+    bool HasError();
+    const std::string& GetErrorMessage();
 
 private:
+    //Error formatter
+    bool Error(const char* fmt, ...);
+    
     //Utility functions
     void Reset(size_t position);
     bool Read(std::string& value, size_t count);
@@ -35,5 +41,7 @@ private:
     bool NextSymbol(Token& token);
 
 private:
+    bool m_HasError;
+    std::string m_ErrorMessage;
     std::istringstream m_Stream;
 };

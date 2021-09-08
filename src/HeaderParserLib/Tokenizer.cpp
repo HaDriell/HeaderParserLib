@@ -1,10 +1,13 @@
 #include "HeaderParserLib/Tokenizer.h"
 #include <regex>
 #include <map>
+#include <cstdarg>
 
 
 Tokenizer::Tokenizer(std::string& input)
     : m_Stream(input)
+    , m_HasError(false)
+    , m_ErrorMessage()
 {
     m_Stream >> std::noskipws;
 }
@@ -21,33 +24,54 @@ bool Tokenizer::NextToken(Token& token)
         m_Stream.get();
     }
 
-    //Detect early end of input
-    if (IsEOF())
+    if (m_Stream.good())
     {
-        return false;
+        //Save cursor
+        size_t position = m_Stream.tellg();
+
+        // Check for Comments
+        if (NextComment(token))             return true; else Reset(position);
+        // Check for Constants & Literals
+        if (NextIntegerLiteral(token))      return true; else Reset(position);
+        if (NextStringLiteral(token))       return true; else Reset(position);
+        if (NextBooleanLiteral(token))      return true; else Reset(position);
+        // Check for identifiers
+        if (NextIdentifier(token))          return true; else Reset(position);
+        // Check for symbols
+        if (NextSymbol(token))              return true; else Reset(position);
     }
-
-    //Save cursor
-    size_t position = m_Stream.tellg();
-
-    // Check for Comments
-    if (NextComment(token))             return true; else Reset(position);
-    // Check for Constants & Literals
-    if (NextIntegerLiteral(token))      return true; else Reset(position);
-    if (NextStringLiteral(token))       return true; else Reset(position);
-    if (NextBooleanLiteral(token))      return true; else Reset(position);
-    // Check for identifiers
-    if (NextIdentifier(token))          return true; else Reset(position);
-    // Check for symbols
-    if (NextSymbol(token))              return true; else Reset(position);
 
     //Unexpected Token !
     return false;
 }
 
-bool Tokenizer::IsEOF()
+void Tokenizer::ClearError()
 {
-    return m_Stream.eof();
+    m_HasError = false;
+}
+
+bool Tokenizer::HasError()
+{
+    return m_HasError;
+}
+
+const std::string& Tokenizer::GetErrorMessage()
+{
+    return m_ErrorMessage;
+}
+
+bool Tokenizer::Error(const char* format, ...)
+{
+    char buffer[512];
+
+    va_list args;
+    va_start(args, format);
+    int size = vsprintf_s(buffer, format, args);
+    va_end(args);
+
+    m_ErrorMessage = std::string(buffer, size);
+    m_HasError = true;
+    return false;
 }
 
 void Tokenizer::Reset(size_t position)
@@ -84,15 +108,13 @@ bool Tokenizer::ReadUntilSequence(const std::string& sequence, std::string& valu
 
     while (!NextSequence(sequence))
     {
-        if (m_Stream >> next)
-        {
-            buffer += next;
-        }
-        else
+        if (!m_Stream.get(next))
         {
             Reset(position);
-            return false;
+            return Error("[Tokenizer::ReadUntilSequence] : Failed to read Stream");
         }
+
+        buffer += next;
     }
 
     value = buffer;
@@ -106,16 +128,13 @@ bool Tokenizer::NextSequence(const std::string& sequence)
     for (char expected : sequence)
     {
         char actual;
-        if (m_Stream >> actual)
+        if (!m_Stream.get(actual))
         {
-            if (expected != actual)
-            {
-                Reset(position);
-                return false;
-            }
+            Reset(position);
+            return Error("[Tokenizer::NextSequence] : Failed to read Stream");
         }
 
-        if (m_Stream.bad())
+        if (expected != actual)
         {
             Reset(position);
             return false;
@@ -237,7 +256,7 @@ bool Tokenizer::NextStringLiteral(Token& token)
         }
 
         Reset(position);
-        return false;
+        return Error("[Tokenizer::NextStringLiteral] : Failed to read Stream");
     }
 
     return false;
