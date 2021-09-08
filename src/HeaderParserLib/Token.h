@@ -1,19 +1,41 @@
 #pragma once
 
 #include <cstdint>
+#include <variant>
 #include <string>
-#include <string_view>
 
-enum class TokenType
+struct StringLiteralToken
 {
-    Unknown,
-    Symbol,
-    Identifier,
-    Constant,
+    std::string Value;
 };
 
-struct Token
+struct IntegerLiteralToken
 {
-    TokenType           m_Type;
-    std::string_view    m_Value;
+    int64_t Value;
+};
+
+struct IdentifierToken
+{
+    std::string Value;
+};
+
+using Token = std::variant<
+    StringLiteralToken,
+    IntegerLiteralToken,
+    IdentifierToken
+>;
+
+class TokenHandler
+{
+public:
+    TokenHandler();
+    virtual ~TokenHandler();
+
+    void HandleToken(const Token& token);
+    
+protected:
+    virtual void Handle(const StringLiteralToken& token) {}
+    virtual void Handle(const IntegerLiteralToken& token) {}
+    virtual void Handle(const IdentifierToken& token) {}
+
 };

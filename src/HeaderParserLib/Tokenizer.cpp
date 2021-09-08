@@ -1,7 +1,10 @@
 #include "HeaderParserLib/Tokenizer.h"
+#include <regex>
+#include <map>
 
-Tokenizer::Tokenizer(std::istream& stream)
-    : m_Stream(stream)
+
+Tokenizer::Tokenizer(std::string& input)
+    : m_Stream(input)
 {
 }
 
@@ -9,25 +12,27 @@ Tokenizer::~Tokenizer()
 {
 }
 
-void Tokenizer::Reset()
+bool Tokenizer::NextToken(Token& token)
 {
-    m_Stream.clear();
-    m_Stream.seekg(0, std::ios::beg);
-}
+    //Detect early end of input
+    if (IsEOF())
+    {
+        return false;
+    }
 
-char Tokenizer::GetChar()
-{
-    return m_Stream.get();
-}
+    //Skip whitespaces
+    SkipWhitespaces();
 
-char Tokenizer::PeekChar()
-{
-    return m_Stream.peek();
-}
+    //Save cursor
+    size_t lastValidPosition = m_Stream.tellg();
 
-void Tokenizer::UngetChar()
-{
-    m_Stream.seekg(m_Stream.tellg(), std::ios::beg);
+    //Try tokenizing
+    if (NextIntegerLiteral(token))  return true; else Reset(lastValidPosition);
+    if (NextStringLiteral(token))   return true; else Reset(lastValidPosition);
+    if (NextIdentifier(token))      return true; else Reset(lastValidPosition);
+
+    //Unexpected Token !
+    return false;
 }
 
 bool Tokenizer::IsEOF()
@@ -35,28 +40,103 @@ bool Tokenizer::IsEOF()
     return m_Stream.eof();
 }
 
-bool Tokenizer::NextToken()
+void Tokenizer::Reset(size_t position)
 {
-    char current = GetChar();
-    char next = PeekChar();
+    m_Stream.clear();
+    m_Stream.seekg(position);
+}
 
-    bool hasNextToken = false;
-    while (!hasNextToken)
+void Tokenizer::SkipWhitespaces()
+{
+    while(m_Stream.good() && std::isspace(m_Stream.peek()))
     {
-        switch (current)
+        m_Stream.get();
+    }
+}
+
+bool Tokenizer::Expect(const std::string& word)
+{
+    size_t position = m_Stream.tellg();
+
+    for (char c : word)
+    {
+        if (c != m_Stream.get())
         {
-        case ' ':
-        case '\t':
-        case '\n':
-        case '\r':
-            // Whitespace
-            break;
-        
-        default:
-            break;
+            Reset(position);
+            return false;
         }
     }
     
+    return true;
+}
+
+bool Tokenizer::NextIntegerLiteral(Token& token)
+{
+    int64_t value;
+    if (m_Stream >> value)
+    {
+        token = IntegerLiteralToken{ value };
+        return true;
+    }
+    return false;
+}
+
+bool Tokenizer::NextStringLiteral(Token& token)
+{
+    char delimiter;
+    m_Stream.get(delimiter);
+
+    //Not a String Literal
+    if (delimiter != '\'' && delimiter != '"')
+    {
+        return false;
+    }
+
+    std::string value;
+
+    while (m_Stream.good())
+    {
+        if (m_Stream.eof()) return false; // Unexpected EOF
+
+        char next;
+        m_Stream.get(next);
+        
+        if (next == '\n') return false; // Unexpected newline
+
+        //End of String
+        if (next == delimiter)
+        {
+            token = StringLiteralToken{ value };
+            return true;
+        }
+
+        //Buffer string
+        value += next;
+    }
 
     return false;
+}
+
+bool Tokenizer::NextIdentifier(Token& token)
+{
+    char c;
+    m_Stream.get(c);
+
+    std::string value = "";
+
+    value.push_back(c);
+
+    //Not an Identifier
+    if (!std::isalpha(c)) return false;
+
+    //Buffer the identifier
+    while (m_Stream.good() && std::isalnum( std::char_traits<char>::to_char_type(m_Stream.peek()) ))
+    {
+        m_Stream.get(c);
+        value += c;
+    }
+
+    token = IdentifierToken{ value };
+
+    return true;
 }

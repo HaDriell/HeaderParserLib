@@ -1,27 +1,31 @@
 #pragma once
 
-#include <istream>
-#include <ostream>
-#include <vector>
+#include <cstdint>
+#include <sstream>
+#include <string>
 
 #include "HeaderParserLib/Token.h"
 
-class Tokenizer
+class Tokenizer final
 {
 public:
-    Tokenizer(std::istream& stream);
-    virtual ~Tokenizer();
+    Tokenizer(std::string& input);
+    ~Tokenizer();
 
     Tokenizer(const Tokenizer& other) = delete;
     Tokenizer(Tokenizer&& other) = delete;
 
-    void Reset();
-    char GetChar();
-    char PeekChar();
-    void UngetChar();
+    bool NextToken(Token& token);
     bool IsEOF();
-    bool NextToken();
+
 private:
-    Token m_CurrentToken;
-    std::istream& m_Stream;
+    void Reset(size_t position);
+    void SkipWhitespaces();
+    bool Expect(const std::string& word);
+
+    bool NextIntegerLiteral(Token& token);
+    bool NextStringLiteral(Token& token);
+    bool NextIdentifier(Token& token);
+private:
+    std::istringstream m_Stream;
 };
