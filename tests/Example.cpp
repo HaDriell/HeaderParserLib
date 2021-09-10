@@ -10,7 +10,8 @@ int main()
     std::string input;
     LoadFile("Example.cpp.input", input);
 
-    Tokenizer tokenizer(input);
+    Tokenizer tokenizer;
+    tokenizer.SetSource(input);
 
     Token token;
 

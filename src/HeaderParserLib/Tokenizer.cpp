@@ -4,17 +4,13 @@
 #include <cstdarg>
 
 
-Tokenizer::Tokenizer(std::string& input)
-    : m_Stream(input)
-    , m_HasError(false)
-    , m_ErrorMessage()
+
+void Tokenizer::SetSource(const std::string& source)
 {
+    m_Stream = std::istringstream(source);
     m_Stream >> std::noskipws;
 }
 
-Tokenizer::~Tokenizer()
-{
-}
 
 bool Tokenizer::NextToken(Token& token)
 {

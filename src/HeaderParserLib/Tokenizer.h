@@ -9,11 +9,7 @@
 class Tokenizer
 {
 public:
-    Tokenizer(std::string& input);
-    ~Tokenizer();
-
-    Tokenizer(const Tokenizer& other) = delete;
-    Tokenizer(Tokenizer&& other) = delete;
+    void SetSource(const std::string& source);
 
     bool NextToken(Token& token);
 
@@ -42,7 +38,7 @@ private:
     bool Error(const char* fmt, ...);
 
 private:
-    bool m_HasError;
+    bool m_HasError = false;
     std::string m_ErrorMessage;
     std::istringstream m_Stream;
 };
