@@ -4,15 +4,6 @@
 #include "HeaderParserLib/Tokenizer.h"
 #include "ExampleUtils.h"
 
-class TokenLogger : public TokenHandler
-{
-public:
-    void Handle(const SymbolToken& token)           { std::cout << "Symbol( " << token.Value << " )\n"; }
-    void Handle(const CommentToken& token)          { std::cout << "Comment( " << token.Value << " )\n"; }
-    void Handle(const IdentifierToken& token)       { std::cout << "Identifier( " << token.Value << " )\n"; }
-    void Handle(const IntegerLiteralToken& token)   { std::cout << "Integer( " << token.Value << " )\n"; }
-    void Handle(const StringLiteralToken& token)    { std::cout << "String( " << token.Value << " )\n"; }
-};
 
 int main()
 {
@@ -20,7 +11,6 @@ int main()
     LoadFile("Example.cpp.input", input);
 
     Tokenizer tokenizer(input);
-    TokenLogger logger;
 
     Token token;
 
@@ -28,7 +18,11 @@ int main()
 
     while (tokenizer.NextToken(token))
     {
-        logger.HandleToken(token);
+        if (std::holds_alternative<SymbolToken>(token))         { std::cout << "Symbol( " << std::get<SymbolToken>(token).Value << " )\n"; }
+        if (std::holds_alternative<CommentToken>(token))        { std::cout << "Comment( " << std::get<CommentToken>(token).Value << " )\n"; }
+        if (std::holds_alternative<IdentifierToken>(token))     { std::cout << "Identifier( " << std::get<IdentifierToken>(token).Value << " )\n"; }
+        if (std::holds_alternative<IntegerLiteralToken>(token)) { std::cout << "Integer( " << std::get<IntegerLiteralToken>(token).Value << " )\n"; }
+        if (std::holds_alternative<StringLiteralToken>(token))  { std::cout << "String( " << std::get<StringLiteralToken>(token).Value << " )\n"; }
     }
 
     if (tokenizer.HasError())

@@ -21,9 +21,6 @@ public:
     bool HasError();
     const std::string& GetErrorMessage();
 
-private:
-    //Error formatter
-    bool Error(const char* fmt, ...);
     
     //Utility functions
     void Reset(size_t position);
@@ -39,6 +36,10 @@ private:
     bool NextStringLiteral(Token& token);
     bool NextIdentifier(Token& token);
     bool NextSymbol(Token& token);
+
+private:
+    //Error formatter
+    bool Error(const char* fmt, ...);
 
 private:
     bool m_HasError;

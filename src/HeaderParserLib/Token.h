@@ -42,20 +42,3 @@ using Token = std::variant<
     IntegerLiteralToken,
     IdentifierToken
 >;
-
-class TokenHandler
-{
-public:
-    TokenHandler();
-    virtual ~TokenHandler();
-
-    void HandleToken(const Token& token);
-    
-protected:
-    virtual void Handle(const SymbolToken& token) {}
-    virtual void Handle(const CommentToken& token) {}
-    virtual void Handle(const BooleanLiteralToken& token) {}
-    virtual void Handle(const StringLiteralToken& token) {}
-    virtual void Handle(const IntegerLiteralToken& token) {}
-    virtual void Handle(const IdentifierToken& token) {}
-};
