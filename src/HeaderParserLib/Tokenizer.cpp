@@ -14,31 +14,48 @@ void Tokenizer::SetSource(const std::string& source)
 
 bool Tokenizer::NextToken(Token& token)
 {
-    //skip whitespaces
-    while (std::isspace(m_Stream.peek()))
+    CommentToken comment;
+    if (NextComment(comment))
     {
-        m_Stream.get();
+        token = comment;
+        return true;
+    }
+    
+    IntegerLiteralToken integer;
+    if (NextIntegerLiteral(integer))
+    {
+        token = integer;
+        return true;
+    }
+    
+    StringLiteralToken string;
+    if (NextStringLiteral(string))
+    {
+        token = string;
+        return true;
+    }
+    BooleanLiteralToken boolean;
+    if (NextBooleanLiteral(boolean))
+    {
+        token = boolean;
+        return true;
     }
 
-    if (m_Stream.good())
+    IdentifierToken identifier;
+    if (NextIdentifier(identifier))
     {
-        //Save cursor
-        size_t position = m_Stream.tellg();
-
-        // Check for Comments
-        if (NextComment(token))             return true; else Reset(position);
-        // Check for Constants & Literals
-        if (NextIntegerLiteral(token))      return true; else Reset(position);
-        if (NextStringLiteral(token))       return true; else Reset(position);
-        if (NextBooleanLiteral(token))      return true; else Reset(position);
-        // Check for identifiers
-        if (NextIdentifier(token))          return true; else Reset(position);
-        // Check for symbols
-        if (NextSymbol(token))              return true; else Reset(position);
+        token = identifier;
+        return true;
+    }
+    
+    SymbolToken symbol;
+    if (NextSymbol(symbol))
+    {
+        token = symbol;
+        return true;
     }
 
-    //Unexpected Token !
-    return false;
+    return Error("[Tokenizer::NextToken] Unknown Token !");
 }
 
 void Tokenizer::ClearError()
@@ -68,6 +85,12 @@ bool Tokenizer::Error(const char* format, ...)
     m_ErrorMessage = std::string(buffer, size);
     m_HasError = true;
     return false;
+}
+
+
+size_t Tokenizer::GetPosition()
+{
+    return m_Stream.tellg();
 }
 
 void Tokenizer::Reset(size_t position)
@@ -168,15 +191,25 @@ bool Tokenizer::NextWord(const std::string& word)
     return false;
 }
 
-bool Tokenizer::NextComment(Token& token)
+void Tokenizer::SkipWhitespaces()
 {
+    while (std::isspace(m_Stream.peek()))
+    {
+        m_Stream.get();
+    }
+}
+
+bool Tokenizer::NextComment(CommentToken& token)
+{
+    SkipWhitespaces();
+
     //Single Line Comment
     if (NextSequence("//"))
     {
         std::string value;
         if (ReadUntilSequence("\n", value))
         {
-            token = CommentToken{ value };
+            token.Value = value;
         }
         return true;
     }
@@ -187,7 +220,7 @@ bool Tokenizer::NextComment(Token& token)
         std::string value;
         if (ReadUntilSequence("*/", value))
         {
-            token = CommentToken{ value };
+            token.Value = value;
             return true;
         }
     }
@@ -195,36 +228,46 @@ bool Tokenizer::NextComment(Token& token)
     return false;
 }
 
-bool Tokenizer::NextBooleanLiteral(Token& token)
+bool Tokenizer::NextBooleanLiteral(BooleanLiteralToken& token)
 {
+    SkipWhitespaces();
+
     if (NextWord("true"))
     {
-        token = BooleanLiteralToken{ true };
+        token.Value = true;
         return true;
     }
     
     if (NextWord("false"))
     {
-        token = BooleanLiteralToken{ false };
+        token.Value = false;
         return true;
     }
 
     return false;
 }
 
-bool Tokenizer::NextIntegerLiteral(Token& token)
+bool Tokenizer::NextIntegerLiteral(IntegerLiteralToken& token)
 {
+    SkipWhitespaces();
+
+    size_t position = m_Stream.tellg();
+
     int64_t value;
     if (m_Stream >> value)
     {
-        token = IntegerLiteralToken{ value };
+        token.Value = value;
         return true;
     }
+
+    Reset(position);
     return false;
 }
 
-bool Tokenizer::NextStringLiteral(Token& token)
+bool Tokenizer::NextStringLiteral(StringLiteralToken& token)
 {
+    SkipWhitespaces();
+
     size_t position = m_Stream.tellg();
 
     char next;
@@ -255,62 +298,62 @@ bool Tokenizer::NextStringLiteral(Token& token)
         return Error("[Tokenizer::NextStringLiteral] : Failed to read Stream");
     }
 
+    Reset(position);
     return false;
 }
 
-bool Tokenizer::NextIdentifier(Token& token)
+bool Tokenizer::NextIdentifier(IdentifierToken& token)
 {
-    char c;
-    m_Stream.get(c);
+    SkipWhitespaces();
 
-    std::string value = "";
+    size_t position = m_Stream.tellg();
 
-    value.push_back(c);
-
-    //Not an Identifier
-    if (!std::isalpha(c) || c == '_') return false;
-
-    //Buffer the identifier
-    while (m_Stream.good() && (std::isalnum(m_Stream.peek()) || std::char_traits<char>::to_char_type(m_Stream.peek()) == '_'))
-    {
-        m_Stream.get(c);
-        value += c;
-    }
-
-    token = IdentifierToken{ value };
-    return true;
-}
-
-bool Tokenizer::NextSymbol(Token& token)
-{
-    if (NextSequence("<<")) { token = SymbolToken{ "<<" }; return true; }
-    if (NextSequence(">>")) { token = SymbolToken{ ">>" }; return true; }
-
-    if (NextSequence("!=")) { token = SymbolToken{ "!=" }; return true; }
-    if (NextSequence("==")) { token = SymbolToken{ "==" }; return true; }
-    if (NextSequence(">=")) { token = SymbolToken{ ">=" }; return true; }
-    if (NextSequence("<=")) { token = SymbolToken{ "<=" }; return true; }
-    
-    if (NextSequence("+=")) { token = SymbolToken{ "+=" }; return true; }
-    if (NextSequence("-=")) { token = SymbolToken{ "-=" }; return true; }
-    if (NextSequence("*=")) { token = SymbolToken{ "*=" }; return true; }
-    if (NextSequence("/=")) { token = SymbolToken{ "/=" }; return true; }
-    if (NextSequence("^=")) { token = SymbolToken{ "^=" }; return true; }
-    if (NextSequence("&=")) { token = SymbolToken{ "&=" }; return true; }
-    if (NextSequence("|=")) { token = SymbolToken{ "|=" }; return true; }
-    if (NextSequence("~=")) { token = SymbolToken{ "~=" }; return true; }
-    if (NextSequence("%=")) { token = SymbolToken{ "%=" }; return true; }
-    
-    if (NextSequence("&&")) { token = SymbolToken{ "&&" }; return true; }
-    if (NextSequence("||")) { token = SymbolToken{ "||" }; return true; }
-
-    if (NextSequence("::")) { token = SymbolToken{ "::" }; return true; }
-
+    char next;
     std::string value;
 
+    if (m_Stream >> next && (std::isalpha(next) || next == '_'))
+    {
+        value += next;
+        while (std::isalnum(m_Stream.peek()) || std::char_traits<char>::to_char_type(m_Stream.peek()) == '_')
+        {
+            m_Stream >> next;
+            value += next;
+        }
+        token.Value = value;
+        return true;
+    }
+
+    Reset(position);
+    return false;
+}
+
+bool Tokenizer::NextSymbol(SymbolToken& token)
+{
+    SkipWhitespaces();
+
+    if (NextSequence("<<")) { token.Value = "<<"; return true; }
+    if (NextSequence(">>")) { token.Value = ">>"; return true; }
+    if (NextSequence("!=")) { token.Value = "!="; return true; }
+    if (NextSequence("==")) { token.Value = "=="; return true; }
+    if (NextSequence(">=")) { token.Value = ">="; return true; }
+    if (NextSequence("<=")) { token.Value = "<="; return true; }
+    if (NextSequence("+=")) { token.Value = "+="; return true; }
+    if (NextSequence("-=")) { token.Value = "-="; return true; }
+    if (NextSequence("*=")) { token.Value = "*="; return true; }
+    if (NextSequence("/=")) { token.Value = "/="; return true; }
+    if (NextSequence("^=")) { token.Value = "^="; return true; }
+    if (NextSequence("&=")) { token.Value = "&="; return true; }
+    if (NextSequence("|=")) { token.Value = "|="; return true; }
+    if (NextSequence("~=")) { token.Value = "~="; return true; }
+    if (NextSequence("%=")) { token.Value = "%="; return true; }
+    if (NextSequence("&&")) { token.Value = "&&"; return true; }
+    if (NextSequence("||")) { token.Value = "||"; return true; }
+    if (NextSequence("::")) { token.Value = "::"; return true; }
+
+    std::string value;
     if (Read(value, 1))
     {
-        token = SymbolToken{ value };
+        token.Value = value;
         return true;
     }
 

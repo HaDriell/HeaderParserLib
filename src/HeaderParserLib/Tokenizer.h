@@ -11,27 +11,28 @@ class Tokenizer
 public:
     void SetSource(const std::string& source);
 
-    bool NextToken(Token& token);
-
     void ClearError();
     bool HasError();
     const std::string& GetErrorMessage();
 
     
     //Utility functions
+    size_t GetPosition();
     void Reset(size_t position);
     bool Read(std::string& value, size_t count);
     bool ReadUntilSequence(const std::string& sequence, std::string& value);
     bool NextSequence(const std::string& sequence);
     bool NextWord(const std::string& word);
+    void SkipWhitespaces();
+    bool NextToken(Token& token);
 
     //Token functions
-    bool NextComment(Token& token);
-    bool NextBooleanLiteral(Token& token);
-    bool NextIntegerLiteral(Token& token);
-    bool NextStringLiteral(Token& token);
-    bool NextIdentifier(Token& token);
-    bool NextSymbol(Token& token);
+    bool NextComment(CommentToken& token);
+    bool NextBooleanLiteral(BooleanLiteralToken& token);
+    bool NextIntegerLiteral(IntegerLiteralToken& token);
+    bool NextStringLiteral(StringLiteralToken& token);
+    bool NextIdentifier(IdentifierToken& token);
+    bool NextSymbol(SymbolToken& token);
 
 private:
     //Error formatter
