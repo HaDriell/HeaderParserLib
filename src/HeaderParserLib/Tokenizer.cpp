@@ -1,8 +1,9 @@
 #include "HeaderParserLib/Tokenizer.h"
+
+#include <algorithm>
 #include <regex>
 #include <map>
 #include <cstdarg>
-
 
 
 void Tokenizer::SetSource(const std::string& source)
@@ -12,184 +13,123 @@ void Tokenizer::SetSource(const std::string& source)
 }
 
 
-bool Tokenizer::NextToken(Token& token)
-{
-    CommentToken comment;
-    if (NextComment(comment))
-    {
-        token = comment;
-        return true;
-    }
-    
-    IntegerLiteralToken integer;
-    if (NextIntegerLiteral(integer))
-    {
-        token = integer;
-        return true;
-    }
-    
-    StringLiteralToken string;
-    if (NextStringLiteral(string))
-    {
-        token = string;
-        return true;
-    }
-    BooleanLiteralToken boolean;
-    if (NextBooleanLiteral(boolean))
-    {
-        token = boolean;
-        return true;
-    }
-
-    IdentifierToken identifier;
-    if (NextIdentifier(identifier))
-    {
-        token = identifier;
-        return true;
-    }
-    
-    SymbolToken symbol;
-    if (NextSymbol(symbol))
-    {
-        token = symbol;
-        return true;
-    }
-
-    return Error("[Tokenizer::NextToken] Unknown Token !");
-}
-
-void Tokenizer::ClearError()
-{
-    m_HasError = false;
-}
-
-bool Tokenizer::HasError()
-{
-    return m_HasError;
-}
-
-const std::string& Tokenizer::GetErrorMessage()
-{
-    return m_ErrorMessage;
-}
-
-bool Tokenizer::Error(const char* format, ...)
-{
-    char buffer[512];
-
-    va_list args;
-    va_start(args, format);
-    int size = vsprintf_s(buffer, format, args);
-    va_end(args);
-
-    m_ErrorMessage = std::string(buffer, size);
-    m_HasError = true;
-    return false;
-}
-
-
 size_t Tokenizer::GetPosition()
 {
     return m_Stream.tellg();
 }
 
-void Tokenizer::Reset(size_t position)
+
+void Tokenizer::SetPosition(size_t position, bool clearErrors)
 {
-    m_Stream.clear();
+    if (clearErrors)
+    {
+        m_Stream.clear();
+    }
     m_Stream.seekg(position);
 }
 
-bool Tokenizer::Read(std::string& value, size_t count)
-{
-    size_t position = m_Stream.tellg();
 
+bool Tokenizer::Get(char& character)
+{
+    m_Stream >> character;    
+    return m_Stream.good(); // Reached EOF ?! WTF
+}
+
+
+bool Tokenizer::GetString(std::string& value, size_t count)
+{
     value.resize(count);
-    for (char& c : value)
+    for (char& character : value)
     {
-        m_Stream >> c;
+        if (!Get(character))
+        {
+            return false;
+        }
     }
-
-    if (m_Stream.bad())
-    {
-        Reset(position);
-        return false;
-    }
-
-    return true;
-}
-
-bool Tokenizer::ReadUntilSequence(const std::string& sequence, std::string& value)
-{
-    size_t position = m_Stream.tellg();
     
+    return true;
+}
+
+
+bool Tokenizer::GetString(std::string& value, const std::string& delimiter)
+{
     std::string buffer;
-    char next;
+    char character;
 
-    while (!NextSequence(sequence))
+    while (Get(character))
     {
-        if (!m_Stream.get(next))
+        buffer += character;
+
+        // match <delimiter> to the end of <buffer>
+        if (buffer.size() >= delimiter.size())
         {
-            Reset(position);
-            return Error("[Tokenizer::ReadUntilSequence] : Failed to read Stream");
-        }
-
-        buffer += next;
-    }
-
-    value = buffer;
-    return true;
-}
-
-bool Tokenizer::NextSequence(const std::string& sequence)
-{
-    size_t position = m_Stream.tellg();
-
-    for (char expected : sequence)
-    {
-        char actual;
-        if (!m_Stream.get(actual))
-        {
-            Reset(position);
-            return Error("[Tokenizer::NextSequence] : Failed to read Stream");
-        }
-
-        if (expected != actual)
-        {
-            Reset(position);
-            return false;
+            auto eos_index = buffer.size() - delimiter.size();
+            if (buffer.compare(eos_index, delimiter.size(), delimiter.data()) == 0)
+            {
+                value = buffer.substr(0, eos_index);
+                return true;
+            }
         }
     }
 
-    return true;
+    return false;
 }
 
-bool Tokenizer::NextWord(const std::string& word)
+
+bool Tokenizer::ExpectString(const std::string& expected)
 {
-    size_t position = m_Stream.tellg();
+    size_t position = GetPosition();
 
-    // Match with word
-    if (NextSequence(word))
+    std::string actual;
+    if (GetString(actual, expected.size()) && actual == expected)
     {
-        // Check that next character is not alphanumeric
-        if (!std::isalnum(m_Stream.peek()))
-        {
-            Reset(position);
-            return false;
-        }
+        return true;
+    }
 
-        // Check that next character is not '_'
-        if (std::char_traits<char>::to_char_type(m_Stream.peek()) == '_')
-        {
-            Reset(position);
-            return false;
-        }
+    SetPosition(position);
+    return false;
+}
 
-        //Expectation valid
+
+bool Tokenizer::GetWord(std::string& value)
+{
+    if (std::isalpha(m_Stream.peek()) || std::char_traits<char>::to_char_type(m_Stream.peek()) == '_')
+    {
+        char character;
+        std::string buffer;
+        while (std::isalnum(m_Stream.peek()) || std::char_traits<char>::to_char_type(m_Stream.peek()) == '_')
+        {
+            if (m_Stream >> character)
+            {
+                buffer += character;
+            }
+            else
+            {
+                return false; // mostlikely reached EOF ?! WTF
+            }
+        }
+        value = buffer;
         return true;
     }
 
     return false;
 }
+
+
+bool Tokenizer::ExpectWord(const std::string& expected)
+{
+    size_t position = GetPosition();
+    
+    std::string actual;
+    if (GetWord(actual) && expected == actual)
+    {
+        return true;
+    }
+
+    SetPosition(position);
+    return false;
+}
+
 
 void Tokenizer::SkipWhitespaces()
 {
@@ -199,163 +139,158 @@ void Tokenizer::SkipWhitespaces()
     }
 }
 
-bool Tokenizer::NextComment(CommentToken& token)
+
+bool Tokenizer::GetComment(Token& token)
 {
+    size_t position = GetPosition();
+
     SkipWhitespaces();
 
     //Single Line Comment
-    if (NextSequence("//"))
+    if (ExpectString("//"))
     {
         std::string value;
-        if (ReadUntilSequence("\n", value))
+        if (GetString(value, "\n")) // ends at new-line
         {
-            token.Value = value;
-        }
-        return true;
-    }
-
-    //Multi Line Comment
-    if (NextSequence("/*"))
-    {
-        std::string value;
-        if (ReadUntilSequence("*/", value))
-        {
+            token.Type = TokenType::Comment;
             token.Value = value;
             return true;
         }
     }
 
+    //Multi Line Comment
+    if (ExpectString("/*"))
+    {
+        std::string value;
+        if (GetString(value, "*/")) // ends at */
+        {
+            token.Type = TokenType::Comment;
+            token.Value = value;
+            return true;
+        }
+    }
+
+    SetPosition(position);
     return false;
 }
 
-bool Tokenizer::NextBooleanLiteral(BooleanLiteralToken& token)
+
+bool Tokenizer::GetIdentifier(Token& token)
 {
+    size_t position = GetPosition();
+
     SkipWhitespaces();
 
-    if (NextWord("true"))
+    if (GetWord(token.Value))
     {
-        token.Value = true;
+        token.Type = TokenType::Identifier;
         return true;
     }
     
-    if (NextWord("false"))
-    {
-        token.Value = false;
-        return true;
-    }
-
+    SetPosition(position);
     return false;
 }
 
-bool Tokenizer::NextIntegerLiteral(IntegerLiteralToken& token)
+
+bool Tokenizer::GetSymbol(Token& token)
 {
+    size_t position = GetPosition();
+
     SkipWhitespaces();
 
-    size_t position = m_Stream.tellg();
+    /* Test for known double character operators */
 
-    int64_t value;
-    if (m_Stream >> value)
+    std::string op;
+    if (op = "::"; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; return true; }
+    if (op = "->"; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; return true; }
+
+    if (op = ">>"; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; return true; }
+    if (op = "<<"; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; return true; }
+
+    if (op = "!="; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; return true; }
+    if (op = "=="; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; return true; }
+    if (op = ">="; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; return true; }
+    if (op = "<="; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; return true; }
+
+    if (op = "+="; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; return true; }
+    if (op = "-="; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; return true; }
+    if (op = "*="; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; return true; }
+    if (op = "/="; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; return true; }
+    if (op = "^="; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; return true; }
+    if (op = "~="; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; return true; }
+    if (op = "&="; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; return true; }
+    if (op = "|="; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; return true; }
+    if (op = "%="; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; return true; }
+
+    if (op = "&&"; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; return true; }
+    if (op = "||"; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; return true; }
+
+    if (op = "++"; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; return true; }
+    if (op = "--"; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; return true; }
+
+
+    //TODO : Remove when I know how to better how to NOT accept unknown symbols
+    char symbol;
+    if (Get(symbol))
     {
-        token.Value = value;
+        token.Type = TokenType::Symbol;
+        token.Value = std::string(1, symbol);
         return true;
     }
 
-    Reset(position);
+    SetPosition(position);
     return false;
 }
 
-bool Tokenizer::NextStringLiteral(StringLiteralToken& token)
+
+bool Tokenizer::GetToken(Token& token)
 {
-    SkipWhitespaces();
+    if (GetComment(token)) return true;
+    if (GetIdentifier(token)) return true;
+    if (GetSymbol(token)) return true;
+    return false;
+}
 
-    size_t position = m_Stream.tellg();
 
-    char next;
-    std::string value;
+bool Tokenizer::ExpectIdentifier(const std::string& expected)
+{
+    size_t position = GetPosition();
 
-    if (m_Stream >> next && next == '"')
+    Token token;
+    if (GetIdentifier(token) && token.Value == expected)
     {
-        while (m_Stream >> next)
+        return true;
+    }
+
+    SetPosition(position);
+    return false;
+}
+
+
+bool Tokenizer::ExpectSymbol(const std::string& expected)
+{
+    size_t position = GetPosition();
+
+    Token token;
+    if (GetSymbol(token) && token.Value == expected)
+    {
+        return true;
+    }
+
+    SetPosition(position);
+    return false;
+}
+
+
+bool Tokenizer::SkipToSymbol(const std::string& expected)
+{
+    Token token;
+    while (GetToken(token))
+    {
+        if (token.Type == TokenType::Symbol && token.Value == expected)
         {
-            if (next == '\\') // Escape character
-            {
-                m_Stream >> next;
-                value += next;
-                continue;
-            }
-
-            if (next == '"') // End of String
-            {
-                token = StringLiteralToken{ value };
-                return true;
-            }
-
-            // Buffer string
-            value += next;
+            return true;
         }
-
-        Reset(position);
-        return Error("[Tokenizer::NextStringLiteral] : Failed to read Stream");
     }
-
-    Reset(position);
-    return false;
-}
-
-bool Tokenizer::NextIdentifier(IdentifierToken& token)
-{
-    SkipWhitespaces();
-
-    size_t position = m_Stream.tellg();
-
-    char next;
-    std::string value;
-
-    if (m_Stream >> next && (std::isalpha(next) || next == '_'))
-    {
-        value += next;
-        while (std::isalnum(m_Stream.peek()) || std::char_traits<char>::to_char_type(m_Stream.peek()) == '_')
-        {
-            m_Stream >> next;
-            value += next;
-        }
-        token.Value = value;
-        return true;
-    }
-
-    Reset(position);
-    return false;
-}
-
-bool Tokenizer::NextSymbol(SymbolToken& token)
-{
-    SkipWhitespaces();
-
-    if (NextSequence("<<")) { token.Value = "<<"; return true; }
-    if (NextSequence(">>")) { token.Value = ">>"; return true; }
-    if (NextSequence("!=")) { token.Value = "!="; return true; }
-    if (NextSequence("==")) { token.Value = "=="; return true; }
-    if (NextSequence(">=")) { token.Value = ">="; return true; }
-    if (NextSequence("<=")) { token.Value = "<="; return true; }
-    if (NextSequence("+=")) { token.Value = "+="; return true; }
-    if (NextSequence("-=")) { token.Value = "-="; return true; }
-    if (NextSequence("*=")) { token.Value = "*="; return true; }
-    if (NextSequence("/=")) { token.Value = "/="; return true; }
-    if (NextSequence("^=")) { token.Value = "^="; return true; }
-    if (NextSequence("&=")) { token.Value = "&="; return true; }
-    if (NextSequence("|=")) { token.Value = "|="; return true; }
-    if (NextSequence("~=")) { token.Value = "~="; return true; }
-    if (NextSequence("%=")) { token.Value = "%="; return true; }
-    if (NextSequence("&&")) { token.Value = "&&"; return true; }
-    if (NextSequence("||")) { token.Value = "||"; return true; }
-    if (NextSequence("::")) { token.Value = "::"; return true; }
-
-    std::string value;
-    if (Read(value, 1))
-    {
-        token.Value = value;
-        return true;
-    }
-
     return false;
 }

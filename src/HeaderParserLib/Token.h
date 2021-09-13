@@ -4,41 +4,20 @@
 #include <variant>
 #include <string>
 
-struct SymbolToken
+
+enum class TokenType
 {
+    Invalid = 0,
+
+    Comment,
+    Symbol,
+    Identifier,
+    
+    Count
+};
+
+struct Token
+{
+    TokenType   Type{ TokenType::Invalid };
     std::string Value;
 };
-
-struct CommentToken
-{
-    std::string Value;
-};
-
-struct BooleanLiteralToken
-{
-    bool Value;
-};
-
-struct StringLiteralToken
-{
-    std::string Value;
-};
-
-struct IntegerLiteralToken
-{
-    int64_t Value;
-};
-
-struct IdentifierToken
-{
-    std::string Value;
-};
-
-using Token = std::variant<
-    SymbolToken,
-    CommentToken,
-    BooleanLiteralToken,
-    StringLiteralToken,
-    IntegerLiteralToken,
-    IdentifierToken
->;
