@@ -33,7 +33,7 @@
                 "kind": "build",
                 "isDefault": true
             },
-            "dependsOn":[
+            "dependsOn": [
                 "Generate Projects"
             ]
         }

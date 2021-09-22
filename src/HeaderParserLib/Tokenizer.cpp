@@ -66,13 +66,14 @@ bool Tokenizer::GetString(std::string& value, const std::string& delimiter)
             auto eos_index = buffer.size() - delimiter.size();
             if (buffer.compare(eos_index, delimiter.size(), delimiter.data()) == 0)
             {
-                value = buffer.substr(0, eos_index);
-                return true;
+                buffer = buffer.substr(0, eos_index);
+                break;
             }
         }
     }
 
-    return false;
+    value = buffer;
+    return true;
 }
 
 

@@ -5,11 +5,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Example",
-            "type": "lldb",
+            "name": "Unit Tests",
+            "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/Build/tests/Example.exe",
-            "cwd": "${workspaceFolder}/tests"
+            "program": "${workspaceFolder}/Build/tests/HeaderParserLibTests.exe"
         }
     ]
 }

@@ -6,8 +6,11 @@ project(
     LANGUAGES CXX
 )
 
+
 #Library sources
 add_subdirectory(src)
 
+
 #Tests
+add_subdirectory(extern/googletest)
 add_subdirectory(tests)
