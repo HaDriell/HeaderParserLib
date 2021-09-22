@@ -13,6 +13,12 @@ void Tokenizer::SetSource(const std::string& source)
 }
 
 
+bool Tokenizer::IsEOF() const
+{
+    return m_Stream.eof();
+}
+
+
 size_t Tokenizer::GetPosition()
 {
     return m_Stream.tellg();
@@ -244,10 +250,12 @@ bool Tokenizer::GetSymbol(Token& token)
 bool Tokenizer::GetToken(Token& token)
 {
     SkipWhitespaces();
-    
-    if (GetComment(token)) return true;
-    if (GetIdentifier(token)) return true;
-    if (GetSymbol(token)) return true;
+    if (!IsEOF())
+    {
+        if (GetComment(token)) return true;
+        if (GetIdentifier(token)) return true;
+        if (GetSymbol(token)) return true;
+    }
     return false;
 }
 

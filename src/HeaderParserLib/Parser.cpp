@@ -8,7 +8,7 @@ Parser::Parser()
 }
 
 
-bool Parser::Parse(const std::string& source)
+void Parser::Parse(const std::string& source)
 {
     //Clear Stacks
     m_NamespaceStack.clear();
@@ -19,63 +19,58 @@ bool Parser::Parse(const std::string& source)
     m_GlobalNamespace = Namespace("");
     m_NamespaceStack.push_back(&m_GlobalNamespace);
     
-    while (ParseStatement())
+    while (!m_Tokenizer.IsEOF())
     {
+        ParseStatement();
     }
-
-    return true;
 }
 
 
-bool Parser::ParseStatement()
+void Parser::ParseStatement()
 {
     Token token;
     if (m_Tokenizer.GetToken(token))
     {
-        return ParseDeclaration(token);        
-    }
+        switch (token.Type)
+        {
+        case TokenType::Identifier:
+            if (token.Value == "namespace") ParseNamespace();
+            if (token.Value == "CLASS") ParseClass();
+            if (token.Value == "PROPERTY") ParseProperty();
+            break;
 
-    return false;
+        default:
+            break;
+        }
+    }
 }
 
-
-bool Parser::ParseDeclaration(const Token& token)
-{
-    switch (token.Type)
-    {
-    case TokenType::Identifier:
-        if (token.Value == "CLASS") ParseClass();
-        if (token.Value == "PROPERTY") ParseProperty();
-        break;
-
-    default:
-        break;
-    }
-
-    return true;
-}
 
 void Parser::ParseNamespace()
 {
-    // Expect the namespace keyword
-    if (!m_Tokenizer.ExpectIdentifier("namespace")) throw std::exception("Unexpected Token");
+    /// namespace <Identifier> { ... }
+    ///           ^
+    ///           We are here
 
-    // Get the <name> of the namespace
-    Token namespaceNameToken;
-    if (!m_Tokenizer.GetIdentifier(namespaceNameToken)) throw std::exception("Unexpected Token");
+    // find the Namespace identifier or inline the namespace
+    Token nameToken;
+    Namespace* ns = m_Tokenizer.GetIdentifier(nameToken) ? GetCurrentNamespace()->AddNamespace(nameToken.Value) : nullptr;
+
+    if (ns != nullptr)
+    {
+        PushNamespace(ns);
+    }
 
     if (!m_Tokenizer.ExpectSymbol("{")) throw std::exception("Unexpected Token");
-
-    Namespace* ns = GetCurrentNamespace()->AddNamespace(namespaceNameToken.Value);
-
-    PushNamespace(ns);
-
     while (!m_Tokenizer.ExpectSymbol("}"))
     {
         ParseStatement();
     }
 
-    PopNamespace();
+    if (ns !=nullptr)
+    {
+        PopNamespace();
+    }
 }
 
 void Parser::ParseClass()

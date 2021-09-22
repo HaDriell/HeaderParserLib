@@ -20,10 +20,9 @@ class Parser
 {
 public:
     Parser();
-    bool Parse(const std::string& source);
+    void Parse(const std::string& source);
 
-    bool ParseStatement();
-    bool ParseDeclaration(const Token& token);
+    void ParseStatement();
 
     void ParseNamespace();
     void ParseClass();

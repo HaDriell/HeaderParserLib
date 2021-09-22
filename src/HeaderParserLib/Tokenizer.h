@@ -15,6 +15,9 @@ public:
     /// Create a new Source Stream using the provided source
     void SetSource(const std::string& source);
 
+    /// Returns whether the Source Stream has reached
+    bool IsEOF() const;
+
     /// Gets the current position in the Source Stream
     size_t GetPosition();
 
