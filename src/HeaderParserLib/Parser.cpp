@@ -1,7 +1,9 @@
 #include "HeaderParserLib/Parser.h"
 
+#include <exception>
 
 Parser::Parser()
+    : m_GlobalNamespace("")
 {
 }
 
@@ -14,7 +16,7 @@ bool Parser::Parse(const std::string& source)
 
     //Initialize State
     m_Tokenizer.SetSource(source);
-    m_GlobalNamespace = Namespace();
+    m_GlobalNamespace = Namespace("");
     m_NamespaceStack.push_back(&m_GlobalNamespace);
     
     while (ParseStatement())
@@ -42,9 +44,8 @@ bool Parser::ParseDeclaration(const Token& token)
     switch (token.Type)
     {
     case TokenType::Identifier:
-        if (token.Value == "CLASS") return ParseClass();
-        if (token.Value == "PROPERTY") return ParseProperty();
-        if (token.Value == "FUNCTION") return ParseFunction();
+        if (token.Value == "CLASS") ParseClass();
+        if (token.Value == "PROPERTY") ParseProperty();
         break;
 
     default:
@@ -54,101 +55,256 @@ bool Parser::ParseDeclaration(const Token& token)
     return true;
 }
 
-bool Parser::ParseNamespace()
+void Parser::ParseNamespace()
 {
     // Expect the namespace keyword
-    if (!m_Tokenizer.ExpectIdentifier("namespace")) return false;
+    if (!m_Tokenizer.ExpectIdentifier("namespace")) throw std::exception("Unexpected Token");
 
     // Get the <name> of the namespace
     Token namespaceNameToken;
-    if (!m_Tokenizer.GetIdentifier(namespaceNameToken)) return false;
+    if (!m_Tokenizer.GetIdentifier(namespaceNameToken)) throw std::exception("Unexpected Token");
 
-    if (!m_Tokenizer.ExpectSymbol("{")) return false;
+    if (!m_Tokenizer.ExpectSymbol("{")) throw std::exception("Unexpected Token");
 
-    PushNamespace( GetCurrentNamespace()->AddNamespace(namespaceNameToken.Value) );
+    Namespace* ns = GetCurrentNamespace()->AddNamespace(namespaceNameToken.Value);
 
-    while (!m_Tokenizer.ExpectSymbol("}") && ParseStatement())
+    PushNamespace(ns);
+
+    while (!m_Tokenizer.ExpectSymbol("}"))
     {
+        ParseStatement();
     }
 
     PopNamespace();
-
-    return false;
 }
 
-bool Parser::ParseClass()
+void Parser::ParseClass()
 {
-    if (!ParseMetadata()) return false;
+    Metadata metadata;
+    ParseMetadata(metadata);
 
     //Expect 'class' or 'struct'
-    if (!m_Tokenizer.ExpectIdentifier("class") && !m_Tokenizer.ExpectIdentifier("struct")) return false;
+    if (!m_Tokenizer.ExpectIdentifier("class") && !m_Tokenizer.ExpectIdentifier("struct")) throw std::exception("Unexpected Token");
 
     //Read the ClassName
+    //Look for the ClassName. It's the last Identifier found before Symbols ':' or '{'
     Token classNameToken;
-    if (!m_Tokenizer.GetIdentifier(classNameToken)) return false;
-    //We try to avoid capturing dll export macros there, we should hit a Symbol ':' or '{' at some point
+    if (!m_Tokenizer.GetIdentifier(classNameToken)) throw std::exception("Unexpected Token");
     while (m_Tokenizer.GetIdentifier(classNameToken))
     {
     }
 
-    //MAYDO : Parse Inheritance tree ?
-
-    //Skip to the Class Scope
-    if (!m_Tokenizer.SkipToSymbol("{")) return false;
-
-    PushClass( GetCurrentNamespace()->AddClass(classNameToken.Value) );
-
-    while (!m_Tokenizer.ExpectSymbol("}") && ParseStatement())
+    if (m_Tokenizer.ExpectSymbol(":"))
     {
+        //TODO : Parse inheritance declarations
+    }
+    
+    //In any case skip until we reach the class scope
+    SkipToSymbol("{");
+
+    Class* clazz = GetCurrentNamespace()->AddClass(classNameToken.Value);
+    clazz->SetMetadata(metadata);
+
+    PushClass(clazz);
+
+    while (!m_Tokenizer.ExpectSymbol("}"))
+    {
+        ParseStatement();
     }
 
     PopClass();
-
-    return true;
 }
 
 
-bool Parser::ParseProperty()
+void Parser::ParseProperty()
 {
-    if (!ParseMetadata()) return false;
-
+    Metadata metadata;
+    ParseMetadata(metadata);
+    
     Token propertyTypeName;
-    if (!m_Tokenizer.GetIdentifier(propertyTypeName)) return false;
+    if (!m_Tokenizer.GetIdentifier(propertyTypeName)) throw std::exception("Unexpected Token");
 
     Token propertyName;
-    if (!m_Tokenizer.GetIdentifier(propertyName)) return false;
+    if (!m_Tokenizer.GetIdentifier(propertyName)) throw std::exception("Unexpected Token");
 
-    //MAYDO : Parse initialization expression ?
+    SkipToSymbol(";"); // Don't care about the initializations for now
 
-    if (!m_Tokenizer.SkipToSymbol(";")) return false;
-
-    return true;
+    Field* field = GetCurrentClass()->AddField(propertyTypeName.Value, propertyName.Value);
+    field->SetMetadata(metadata);
 }
 
 
-bool Parser::ParseFunction()
+std::string Parser::ParseType()
 {
-    if (!ParseMetadata()) return false;
+    //Match prefix keywords (static, mutable, const)
+    bool isMutable = false;
+    bool isConst = false;
+    bool isVolatile = false;
+    while (true)
+    {
+        if (m_Tokenizer.ExpectIdentifier("mutable"))    { isMutable = true; continue; }
+        if (m_Tokenizer.ExpectIdentifier("const"))      { isConst = true; continue; }
+        if (m_Tokenizer.ExpectIdentifier("volatile"))   { isVolatile = true; continue; }
+        break;
+    }
 
-    Token returnTypeName;
-    if (!m_Tokenizer.GetIdentifier(returnTypeName)) return false;
+    std::string declarator = ParseTypeDeclarator();
 
-    Token functionName;
-    if (!m_Tokenizer.GetIdentifier(functionName)) return false;
+    //Postfix 'const' specifier
+    isConst |= m_Tokenizer.ExpectIdentifier("const");
 
-    if (!m_Tokenizer.SkipToSymbol(";")) return false;
+    //Template ?
+    if (m_Tokenizer.ExpectSymbol("<"))
+    {
+        std::vector<std::string> arguments;
+        if (!m_Tokenizer.ExpectSymbol(">"))
+        {
+            do {
+                arguments.push_back( ParseType() );
+            } while (m_Tokenizer.ExpectSymbol(","));
 
-    return true;
+            if (!m_Tokenizer.ExpectSymbol(">")) throw std::exception("Unexpected Token");
+        }
+
+        //TODO : append declarator template arguments
+    }
+
+    //Check for pointer and/or reference suffixes
+    while (true)
+    {
+        if (m_Tokenizer.ExpectSymbol("*"))  { declarator += "*"; continue; }
+        if (m_Tokenizer.ExpectSymbol("&"))  { declarator += "&"; continue; }
+        if (m_Tokenizer.ExpectSymbol("&&")) { declarator += "&&"; continue; }
+        break;
+    }
+
+    //Function pointer ?
+    // if (m_Tokenizer.ExpectSymbol("("))
+    // {
+    //     if (m_Tokenizer.ExpectSymbol("*"))
+    //     {
+    //         if (!m_Tokenizer.ExpectSymbol(")"))
+    //         {
+
+    //         }
+    //     }
+    // }
+
+    //TODO : append suffixes
+
+    return declarator;
 }
 
 
-bool Parser::ParseMetadata()
+std::string Parser::ParseTypeDeclarator()
 {
-    if (!m_Tokenizer.ExpectSymbol("(")) return false;
+    //Ignore optional forward declaration specifiers
+    m_Tokenizer.ExpectIdentifier("class");
+    m_Tokenizer.ExpectIdentifier("struct");
+    m_Tokenizer.ExpectIdentifier("typename");
 
-    // Parse Metadata here instead of Skipping
+    std::string declarator;
+    bool lastIsNamespace = false;
 
-    if (!m_Tokenizer.SkipToSymbol(")")) return false;
+    //Check for a potential global Namesapce prefix
+    if (m_Tokenizer.ExpectSymbol("::"))
+    {
+        declarator += "::";
+        lastIsNamespace = true;
+    }
+    
 
-    return true;
+    //Parse type name
+    while (true)
+    {
+        if (lastIsNamespace)
+        {
+            Token token;
+            if (!m_Tokenizer.GetIdentifier(token)) throw std::exception("Unexpected Token");
+
+            declarator += token.Value;
+            lastIsNamespace = false;
+            continue;
+        }
+        
+        if (!lastIsNamespace)
+        {
+            if (!m_Tokenizer.ExpectIdentifier("::")) break;
+            
+            declarator += "::";
+            lastIsNamespace = true;
+        }
+    }
+
+    //Check for invalid type declarators (ending with a namespace resolver or just empty)
+    if (declarator.empty() || declarator.back() == ':') throw std::exception("Unexpected Token");
+
+    return declarator;
+}
+
+
+void Parser::SkipScope()
+{
+    uint32_t depth = 1;
+    Token token;
+
+    while (m_Tokenizer.GetToken(token))
+    {
+        if (token.Type == TokenType::Symbol)
+        {
+            if (token.Value == "{")
+            {
+                depth++;
+            }
+
+            if (token.Value == "}")
+            {
+                depth--;
+            }
+
+            if (depth == 0)
+            {
+                return;
+            }
+        }
+    }
+
+    throw std::exception("Unexpected End of Stream");
+}
+
+
+void Parser::SkipToSymbol(const std::string& value)
+{
+    Token token;
+    while (m_Tokenizer.GetToken(token))
+    {
+        if (token.Type == TokenType::Symbol && token.Value == value)
+        {
+            break;
+        }
+    }
+}
+
+
+void Parser::ParseMetadata(Metadata& metadata)
+{
+    if (!m_Tokenizer.ExpectSymbol("(")) throw std::exception("Unexpected Token");
+    if (!m_Tokenizer.ExpectSymbol(")"))
+    {
+        do
+        {
+            //Match an identifier
+            Token keyToken;
+            Token valueToken;
+            if (!m_Tokenizer.GetIdentifier(keyToken)) throw std::exception("Unexpected Token");
+            if (!m_Tokenizer.ExpectSymbol("=")) throw std::exception("Unexpected Token");
+            if (!m_Tokenizer.GetIdentifier(valueToken)) throw std::exception("Unexpected Token");
+
+            metadata.Set(keyToken.Value, valueToken.Value);
+
+        } while (m_Tokenizer.ExpectSymbol(","));
+
+        if (!m_Tokenizer.ExpectSymbol(")")) throw std::exception("Unexpected Token");
+    }
+
 }

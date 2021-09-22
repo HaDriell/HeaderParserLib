@@ -143,7 +143,6 @@ void Tokenizer::SkipWhitespaces()
 bool Tokenizer::GetComment(Token& token)
 {
     size_t position = GetPosition();
-
     SkipWhitespaces();
 
     //Single Line Comment
@@ -178,7 +177,6 @@ bool Tokenizer::GetComment(Token& token)
 bool Tokenizer::GetIdentifier(Token& token)
 {
     size_t position = GetPosition();
-
     SkipWhitespaces();
 
     if (GetWord(token.Value))
@@ -195,7 +193,6 @@ bool Tokenizer::GetIdentifier(Token& token)
 bool Tokenizer::GetSymbol(Token& token)
 {
     size_t position = GetPosition();
-
     SkipWhitespaces();
 
     /* Test for known double character operators */
@@ -245,6 +242,8 @@ bool Tokenizer::GetSymbol(Token& token)
 
 bool Tokenizer::GetToken(Token& token)
 {
+    SkipWhitespaces();
+    
     if (GetComment(token)) return true;
     if (GetIdentifier(token)) return true;
     if (GetSymbol(token)) return true;
@@ -278,19 +277,5 @@ bool Tokenizer::ExpectSymbol(const std::string& expected)
     }
 
     SetPosition(position);
-    return false;
-}
-
-
-bool Tokenizer::SkipToSymbol(const std::string& expected)
-{
-    Token token;
-    while (GetToken(token))
-    {
-        if (token.Type == TokenType::Symbol && token.Value == expected)
-        {
-            return true;
-        }
-    }
     return false;
 }

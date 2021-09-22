@@ -78,16 +78,6 @@ public:
     /// Rollbacks the Source Stream on fail
     bool ExpectSymbol(const std::string& expected);
 
-    /// Consumes Tokens until it consumes a Symbol with the <expected> value
-    /// Rollbacks the Source Stream on fail
-    bool SkipToSymbol(const std::string& expected);
-    
-    /// Consumes Tokens until it consumes an Identifier with the <expected> value
-    /// Rollbacks the Source Stream on fail
-    bool SkipToIdentifier(const std::string& expected);
-
 private:
-    bool m_HasError = false;
-    std::string m_ErrorMessage;
     std::istringstream m_Stream;
 };

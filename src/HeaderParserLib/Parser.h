@@ -6,6 +6,14 @@
 #include "HeaderParserLib/Token.h"
 #include "HeaderParserLib/Tokenizer.h"
 #include "HeaderParserLib/Metadata/Namespace.h"
+#include "HeaderParserLib/Metadata/Metadata.h"
+
+struct ParserConfiguration
+{
+    std::string ClassAnnotationIdentifier       = "CLASS";
+    std::string PropertyAnnotationIdentifier    = "PROPERTY";
+    std::string FunctionAnnotationIdentifier    = "FUNCTION";
+};
 
 
 class Parser
@@ -17,13 +25,19 @@ public:
     bool ParseStatement();
     bool ParseDeclaration(const Token& token);
 
-    bool ParseNamespace();
-    bool ParseClass();
-    bool ParseProperty();
-    bool ParseFunction();
+    void ParseNamespace();
+    void ParseClass();
+    void ParseProperty();
 
-    bool ParseMetadata();
+    std::string ParseType();
+    std::string ParseTypeDeclarator();
 
+    void SkipScope();
+    void SkipToSymbol(const std::string& value);
+
+    void ParseMetadata(Metadata& metadata);
+
+    inline ParserConfiguration& GetParserConfiguration() { return m_Configuration; }
     inline const Namespace& GetGblobalNamespace() const { return m_GlobalNamespace; }
 
 private:
@@ -37,6 +51,8 @@ private:
 
 private:
     Tokenizer m_Tokenizer;
+    ParserConfiguration m_Configuration;
+
     Namespace m_GlobalNamespace;
 
     std::vector<Namespace*> m_NamespaceStack;

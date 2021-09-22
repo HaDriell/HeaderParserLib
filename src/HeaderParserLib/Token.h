@@ -8,7 +8,7 @@
 enum class TokenType
 {
     Invalid = 0,
-
+    Whitespace,
     Comment,
     Symbol,
     Identifier,
