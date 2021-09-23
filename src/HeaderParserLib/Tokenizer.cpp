@@ -149,8 +149,8 @@ void Tokenizer::SkipWhitespaces()
 
 bool Tokenizer::GetComment(Token& token)
 {
-    size_t position = GetPosition();
     SkipWhitespaces();
+    size_t position = GetPosition();
 
     //Single Line Comment
     if (ExpectString("//"))
@@ -160,6 +160,8 @@ bool Tokenizer::GetComment(Token& token)
         {
             token.Type = TokenType::Comment;
             token.Value = value;
+            token.BeginPosition = position;
+            token.EndPosition = GetPosition();
             return true;
         }
     }
@@ -172,6 +174,8 @@ bool Tokenizer::GetComment(Token& token)
         {
             token.Type = TokenType::Comment;
             token.Value = value;
+            token.BeginPosition = position;
+            token.EndPosition = GetPosition();
             return true;
         }
     }
@@ -183,12 +187,14 @@ bool Tokenizer::GetComment(Token& token)
 
 bool Tokenizer::GetIdentifier(Token& token)
 {
-    size_t position = GetPosition();
     SkipWhitespaces();
+    size_t position = GetPosition();
 
     if (GetWord(token.Value))
     {
         token.Type = TokenType::Identifier;
+        token.BeginPosition = position;
+        token.EndPosition = GetPosition();
         return true;
     }
     
@@ -199,38 +205,33 @@ bool Tokenizer::GetIdentifier(Token& token)
 
 bool Tokenizer::GetSymbol(Token& token)
 {
-    size_t position = GetPosition();
     SkipWhitespaces();
+    size_t position = GetPosition();
 
     /* Test for known double character operators */
 
     std::string op;
-    if (op = "::"; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; return true; }
-    if (op = "->"; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; return true; }
-
-    if (op = ">>"; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; return true; }
-    if (op = "<<"; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; return true; }
-
-    if (op = "!="; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; return true; }
-    if (op = "=="; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; return true; }
-    if (op = ">="; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; return true; }
-    if (op = "<="; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; return true; }
-
-    if (op = "+="; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; return true; }
-    if (op = "-="; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; return true; }
-    if (op = "*="; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; return true; }
-    if (op = "/="; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; return true; }
-    if (op = "^="; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; return true; }
-    if (op = "~="; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; return true; }
-    if (op = "&="; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; return true; }
-    if (op = "|="; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; return true; }
-    if (op = "%="; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; return true; }
-
-    if (op = "&&"; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; return true; }
-    if (op = "||"; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; return true; }
-
-    if (op = "++"; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; return true; }
-    if (op = "--"; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; return true; }
+    if (op = "::"; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; token.BeginPosition = position; token.EndPosition = GetPosition(); return true; }
+    if (op = "->"; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; token.BeginPosition = position; token.EndPosition = GetPosition(); return true; }
+    if (op = ">>"; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; token.BeginPosition = position; token.EndPosition = GetPosition(); return true; }
+    if (op = "<<"; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; token.BeginPosition = position; token.EndPosition = GetPosition(); return true; }
+    if (op = "!="; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; token.BeginPosition = position; token.EndPosition = GetPosition(); return true; }
+    if (op = "=="; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; token.BeginPosition = position; token.EndPosition = GetPosition(); return true; }
+    if (op = ">="; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; token.BeginPosition = position; token.EndPosition = GetPosition(); return true; }
+    if (op = "<="; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; token.BeginPosition = position; token.EndPosition = GetPosition(); return true; }
+    if (op = "+="; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; token.BeginPosition = position; token.EndPosition = GetPosition(); return true; }
+    if (op = "-="; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; token.BeginPosition = position; token.EndPosition = GetPosition(); return true; }
+    if (op = "*="; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; token.BeginPosition = position; token.EndPosition = GetPosition(); return true; }
+    if (op = "/="; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; token.BeginPosition = position; token.EndPosition = GetPosition(); return true; }
+    if (op = "^="; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; token.BeginPosition = position; token.EndPosition = GetPosition(); return true; }
+    if (op = "~="; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; token.BeginPosition = position; token.EndPosition = GetPosition(); return true; }
+    if (op = "&="; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; token.BeginPosition = position; token.EndPosition = GetPosition(); return true; }
+    if (op = "|="; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; token.BeginPosition = position; token.EndPosition = GetPosition(); return true; }
+    if (op = "%="; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; token.BeginPosition = position; token.EndPosition = GetPosition(); return true; }
+    if (op = "&&"; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; token.BeginPosition = position; token.EndPosition = GetPosition(); return true; }
+    if (op = "||"; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; token.BeginPosition = position; token.EndPosition = GetPosition(); return true; }
+    if (op = "++"; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; token.BeginPosition = position; token.EndPosition = GetPosition(); return true; }
+    if (op = "--"; ExpectString(op)) { token.Type = TokenType::Symbol; token.Value = op; token.BeginPosition = position; token.EndPosition = GetPosition(); return true; }
 
 
     //TODO : Remove when I know how to better how to NOT accept unknown symbols
@@ -239,6 +240,8 @@ bool Tokenizer::GetSymbol(Token& token)
     {
         token.Type = TokenType::Symbol;
         token.Value = std::string(1, symbol);
+        token.BeginPosition = position;
+        token.EndPosition = GetPosition();
         return true;
     }
 
@@ -249,7 +252,6 @@ bool Tokenizer::GetSymbol(Token& token)
 
 bool Tokenizer::GetToken(Token& token)
 {
-    SkipWhitespaces();
     if (!IsEOF())
     {
         if (GetComment(token)) return true;

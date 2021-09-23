@@ -18,6 +18,8 @@ enum class TokenType
 
 struct Token
 {
+    size_t      BeginPosition;
+    size_t      EndPosition;
     TokenType   Type{ TokenType::Invalid };
     std::string Value;
 };

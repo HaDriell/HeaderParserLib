@@ -1,5 +1,6 @@
 #include "HeaderParserLib/Parser.h"
 
+#include <algorithm>
 #include <exception>
 
 Parser::Parser()
@@ -8,49 +9,40 @@ Parser::Parser()
 }
 
 
-void Parser::Parse(const std::string& source)
+void Parser::SetSource(const std::string& source)
 {
+    //Initialize Tokenizer
+    m_Tokenizer.SetSource(source);
+
     //Clear Stacks
     m_NamespaceStack.clear();
     m_ClassStack.clear();
 
-    //Initialize State
-    m_Tokenizer.SetSource(source);
+    //Prepare for a new Parsing
     m_GlobalNamespace = Namespace("");
     m_NamespaceStack.push_back(&m_GlobalNamespace);
-    
-    while (!m_Tokenizer.IsEOF())
+}
+
+
+void Parser::ParseProgram()
+{
+    while (ParseStatement())
     {
-        ParseStatement();
     }
 }
 
 
-void Parser::ParseStatement()
+bool Parser::ParseStatement()
 {
-    Token token;
-    if (m_Tokenizer.GetToken(token))
-    {
-        switch (token.Type)
-        {
-        case TokenType::Identifier:
-            if (token.Value == "namespace") ParseNamespace();
-            if (token.Value == "CLASS") ParseClass();
-            if (token.Value == "PROPERTY") ParseProperty();
-            break;
+    if (ParseNamespace()) return true;
 
-        default:
-            break;
-        }
-    }
+    return false;
 }
 
 
-void Parser::ParseNamespace()
+bool Parser::ParseNamespace()
 {
-    /// namespace <Identifier> { ... }
-    ///           ^
-    ///           We are here
+    if (!m_Tokenizer.ExpectIdentifier("namespace")) return false;
 
     // find the Namespace identifier or inline the namespace
     Token nameToken;
@@ -64,16 +56,18 @@ void Parser::ParseNamespace()
     if (!m_Tokenizer.ExpectSymbol("{")) throw std::exception("Unexpected Token");
     while (!m_Tokenizer.ExpectSymbol("}"))
     {
-        ParseStatement();
+        if (!ParseStatement()) throw std::exception("Failed to Parse Statement");
     }
 
     if (ns !=nullptr)
     {
         PopNamespace();
     }
+
+    return true;
 }
 
-void Parser::ParseClass()
+bool Parser::ParseClass()
 {
     Metadata metadata;
     ParseMetadata(metadata);
@@ -108,6 +102,7 @@ void Parser::ParseClass()
     }
 
     PopClass();
+    return true;
 }
 
 
@@ -129,65 +124,66 @@ void Parser::ParseProperty()
 }
 
 
-std::string Parser::ParseType()
+bool Parser::ParseType(std::string& type)
 {
-    //Match prefix keywords (static, mutable, const)
-    bool isMutable = false;
-    bool isConst = false;
-    bool isVolatile = false;
+    //Match prefix cv specifiers
+    std::vector<std::string> prefixes;
     while (true)
     {
-        if (m_Tokenizer.ExpectIdentifier("mutable"))    { isMutable = true; continue; }
-        if (m_Tokenizer.ExpectIdentifier("const"))      { isConst = true; continue; }
-        if (m_Tokenizer.ExpectIdentifier("volatile"))   { isVolatile = true; continue; }
+        if (m_Tokenizer.ExpectIdentifier("const"))      { prefixes.push_back("const"); continue; }
+        if (m_Tokenizer.ExpectIdentifier("volatile"))   { prefixes.push_back("volatile"); continue; }
         break;
     }
 
     std::string declarator = ParseTypeDeclarator();
 
-    //Postfix 'const' specifier
-    isConst |= m_Tokenizer.ExpectIdentifier("const");
-
-    //Template ?
-    if (m_Tokenizer.ExpectSymbol("<"))
+    //Resolve Template Parameters
+    std::vector<std::string> templateParameters;
+    if (ParseTemplateParameters(templateParameters))
     {
-        std::vector<std::string> arguments;
-        if (!m_Tokenizer.ExpectSymbol(">"))
+        declarator += "<";
+        bool first = true;
+        for (const std::string& tparam : templateParameters)
         {
-            do {
-                arguments.push_back( ParseType() );
-            } while (m_Tokenizer.ExpectSymbol(","));
-
-            if (!m_Tokenizer.ExpectSymbol(">")) throw std::exception("Unexpected Token");
+            if (first) first = false;
+            else declarator += ", ";
+            declarator += tparam;
         }
-
-        //TODO : append declarator template arguments
+        declarator += ">";
     }
+
+    std::vector<std::string> suffixes;
 
     //Check for pointer and/or reference suffixes
     while (true)
     {
-        if (m_Tokenizer.ExpectSymbol("*"))  { declarator += "*"; continue; }
-        if (m_Tokenizer.ExpectSymbol("&"))  { declarator += "&"; continue; }
-        if (m_Tokenizer.ExpectSymbol("&&")) { declarator += "&&"; continue; }
+        if (m_Tokenizer.ExpectIdentifier("const")) { suffixes.push_back("const"); continue; }
+        if (m_Tokenizer.ExpectSymbol("&&")) { suffixes.push_back("&&"); continue; }
+        if (m_Tokenizer.ExpectSymbol("*"))  { suffixes.push_back("*"); continue; }
+        if (m_Tokenizer.ExpectSymbol("&"))  { suffixes.push_back("&"); continue; }
         break;
     }
 
-    //Function pointer ?
-    // if (m_Tokenizer.ExpectSymbol("("))
-    // {
-    //     if (m_Tokenizer.ExpectSymbol("*"))
-    //     {
-    //         if (!m_Tokenizer.ExpectSymbol(")"))
-    //         {
+    //Add prefixes
+    {
+        std::reverse(prefixes.begin(), prefixes.end());
+        for (const std::string& prefix : prefixes)
+        {
+            declarator = prefix + " " + declarator;
+        }
+    }
 
-    //         }
-    //     }
-    // }
+    //Add Suffixes
+    {
+        for (const std::string& suffix : suffixes)
+        {
+            declarator += " " + suffix;
+        }
+    }
 
     //TODO : append suffixes
-
-    return declarator;
+    type = declarator;
+    return true;
 }
 
 
@@ -198,43 +194,48 @@ std::string Parser::ParseTypeDeclarator()
     m_Tokenizer.ExpectIdentifier("struct");
     m_Tokenizer.ExpectIdentifier("typename");
 
-    std::string declarator;
-    bool lastIsNamespace = false;
-
-    //Check for a potential global Namesapce prefix
-    if (m_Tokenizer.ExpectSymbol("::"))
-    {
-        declarator += "::";
-        lastIsNamespace = true;
-    }
-    
-
     //Parse type name
+    bool first = true;
+    std::string declarator;
     while (true)
     {
-        if (lastIsNamespace)
+        if (m_Tokenizer.ExpectSymbol("::"))
         {
-            Token token;
-            if (!m_Tokenizer.GetIdentifier(token)) throw std::exception("Unexpected Token");
-
-            declarator += token.Value;
-            lastIsNamespace = false;
-            continue;
-        }
-        
-        if (!lastIsNamespace)
-        {
-            if (!m_Tokenizer.ExpectIdentifier("::")) break;
-            
             declarator += "::";
-            lastIsNamespace = true;
         }
+        else if (!first) // required to correctly parse global namespace resolver prefixing a type
+        {
+            break;
+        }
+
+        first = false;
+
+        Token token;
+        if (!m_Tokenizer.GetIdentifier(token)) throw std::exception("Unexpected Token");
+        declarator += token.Value;
     }
 
-    //Check for invalid type declarators (ending with a namespace resolver or just empty)
-    if (declarator.empty() || declarator.back() == ':') throw std::exception("Unexpected Token");
-
     return declarator;
+}
+
+
+bool Parser::ParseTemplateParameters(std::vector<std::string>& parameters)
+{
+    if (!m_Tokenizer.ExpectSymbol("<")) return false; // Not a Template
+    if (m_Tokenizer.ExpectSymbol(">")) return true; // Empty Template
+
+    //Parse Parameter Pack
+    while (true)
+    {
+        std::string type;
+        if (!ParseType(type)) throw std::exception("Unexpected Token");
+        parameters.push_back(type);
+        if (m_Tokenizer.ExpectSymbol(",")) continue;
+        break;
+    }
+    
+    if (!m_Tokenizer.ExpectSymbol(">")) throw std::exception("Unexpected Token");
+    return true;
 }
 
 

@@ -20,15 +20,18 @@ class Parser
 {
 public:
     Parser();
-    void Parse(const std::string& source);
+    void SetSource(const std::string& source);
 
-    void ParseStatement();
+    void ParseProgram();
+    bool ParseStatement();
 
-    void ParseNamespace();
-    void ParseClass();
+    bool ParseNamespace();
+    bool ParseClass();
     void ParseProperty();
 
-    std::string ParseType();
+    bool ParseType(std::string& type);
+    bool ParseTypeDeclarator(std::string& type);
+    bool ParseTemplateParameters(std::vector<std::string>& parameters);
     std::string ParseTypeDeclarator();
 
     void SkipScope();
