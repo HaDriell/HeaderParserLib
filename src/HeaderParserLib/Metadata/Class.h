@@ -6,7 +6,7 @@
 
 #include "HeaderParserLib/Metadata/Field.h"
 #include "HeaderParserLib/Metadata/Function.h"
-#include "HeaderParserLib/Metadata/Metadata.h"
+#include "HeaderParserLib/Metadata/Annotation.h"
 
 class Class
 {
@@ -15,18 +15,22 @@ public:
 
     inline const std::string& GetName() const { return m_Name; }
 
+    inline const std::vector<std::string>& GetParents() const { return m_Parents; }
+    inline void SetParents(const std::vector<std::string>& parents) { m_Parents = parents; }
+
     inline const std::vector<Field>& GetFields() const { return m_Fields; }
     Field* AddField(const std::string& type, const std::string& name);
 
     inline const std::vector<Function>& GetMethods() const { return m_Methods; }
     Function* AddMethod(const std::string& returnType, const std::string& name, const std::vector<Argument>& arguments);
 
-    inline const Metadata& GetMetadata() const { return m_Metadata; }
-    inline void SetMetadata(const Metadata& metadata) { m_Metadata = metadata; }
+    inline const std::vector<Annotation>& GetAnnotations() const { return m_Annotations; }
+    inline void SetAnnotations(const std::vector<Annotation>& annotations) { m_Annotations = annotations; }
 
 private:
     std::string m_Name;
+    std::vector<std::string> m_Parents;
     std::vector<Field> m_Fields;
     std::vector<Function> m_Methods;
-    Metadata m_Metadata;
+    std::vector<Annotation> m_Annotations;
 };

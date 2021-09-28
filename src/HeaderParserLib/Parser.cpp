@@ -35,8 +35,9 @@ void Parser::ParseProgram()
 bool Parser::ParseStatement()
 {
     if (ParseNamespace()) return true;
-
-    return false;
+    if (ParseClass()) return true;
+    
+    return SkipDeclaration();
 }
 
 
@@ -59,7 +60,7 @@ bool Parser::ParseNamespace()
         if (!ParseStatement()) throw std::exception("Failed to Parse Statement");
     }
 
-    if (ns !=nullptr)
+    if (ns != nullptr)
     {
         PopNamespace();
     }
@@ -69,11 +70,15 @@ bool Parser::ParseNamespace()
 
 bool Parser::ParseClass()
 {
-    Metadata metadata;
-    ParseMetadata(metadata);
+    size_t position = m_Tokenizer.GetPosition();
 
-    //Expect 'class' or 'struct'
-    if (!m_Tokenizer.ExpectIdentifier("class") && !m_Tokenizer.ExpectIdentifier("struct")) throw std::exception("Unexpected Token");
+    std::vector<Annotation> annotations;
+    while (ParseAnnotation(annotations))
+    {
+    }
+
+    //Expect 'class' or 'struct' to begin parsing a class
+    if (!m_Tokenizer.ExpectIdentifier("class") && !m_Tokenizer.ExpectIdentifier("struct")) return false;
 
     //Read the ClassName
     //Look for the ClassName. It's the last Identifier found before Symbols ':' or '{'
@@ -83,16 +88,34 @@ bool Parser::ParseClass()
     {
     }
 
+    //That's a forward declaration !
+    if (m_Tokenizer.ExpectSymbol(";"))
+    {
+        m_Tokenizer.SetPosition(position);
+        return false;
+    }
+
+    std::vector<std::string> parents;
     if (m_Tokenizer.ExpectSymbol(":"))
     {
+        while (true)
+        {
+            std::string type;
+            if (!ParseType(type)) throw std::exception("Unexpected Token");
+            parents.push_back(type);
+
+            if (m_Tokenizer.ExpectSymbol(",")) continue;
+            else break;
+        }
         //TODO : Parse inheritance declarations
     }
     
     //In any case skip until we reach the class scope
-    SkipToSymbol("{");
+    if (!m_Tokenizer.ExpectSymbol("{")) throw std::exception("Unexpected Token");
 
     Class* clazz = GetCurrentNamespace()->AddClass(classNameToken.Value);
-    clazz->SetMetadata(metadata);
+    clazz->SetParents(parents);
+    clazz->SetAnnotations(annotations);
 
     PushClass(clazz);
 
@@ -106,21 +129,64 @@ bool Parser::ParseClass()
 }
 
 
-void Parser::ParseProperty()
+bool Parser::SkipDeclaration()
 {
-    Metadata metadata;
-    ParseMetadata(metadata);
+    Token token;
+    while (m_Tokenizer.GetToken(token))
+    {
+        if (token.Type == TokenType::Symbol)
+        {
+            if (token.Value == ";") return true;
+            if (token.Value == "{") SkipScope();
+        }
+    }
+
+    return false;
+}
+
+
+bool Parser::ParseAnnotation(std::vector<Annotation>& annotations)
+{
+    size_t position = m_Tokenizer.GetPosition();
+
+    //Annotations must start with an identifier
+    Token annotationToken;
+    if (!m_Tokenizer.GetIdentifier(annotationToken)) return false;
+
+    // Validate that the Annotation identifier has been declared
+    auto it = std::find(m_Configuration.Annotations.begin(), m_Configuration.Annotations.end(), annotationToken.Value);
+    if (it == m_Configuration.Annotations.end())
+    {
+        m_Tokenizer.SetPosition(position);
+        return false;
+    }
     
-    Token propertyTypeName;
-    if (!m_Tokenizer.GetIdentifier(propertyTypeName)) throw std::exception("Unexpected Token");
+    Annotation& annotation = annotations.emplace_back(annotationToken.Value);
 
-    Token propertyName;
-    if (!m_Tokenizer.GetIdentifier(propertyName)) throw std::exception("Unexpected Token");
+    if (!m_Tokenizer.ExpectSymbol("(")) throw std::exception("Unexpected Token");
+    if (m_Tokenizer.ExpectSymbol(")")) return true;
 
-    SkipToSymbol(";"); // Don't care about the initializations for now
+    while (true)
+    {
+        Token attributeNameToken;
+        Token attributeValueToken;
+        //Require the attribute name
+        if (!m_Tokenizer.GetIdentifier(attributeNameToken)) throw std::exception("Unexpected Token");
+        //Optionaly require the attribute value
+        if (m_Tokenizer.ExpectSymbol("="))
+        {
+            if (!m_Tokenizer.GetIdentifier(attributeValueToken)) throw std::exception("Unexpected Token");
+        }
 
-    Field* field = GetCurrentClass()->AddField(propertyTypeName.Value, propertyName.Value);
-    field->SetMetadata(metadata);
+        annotation.SetAttribute(attributeNameToken.Value, attributeValueToken.Value);
+
+        if (m_Tokenizer.ExpectSymbol(",")) continue;
+        else break;
+    }
+
+    if (!m_Tokenizer.ExpectSymbol(")")) throw std::exception("Unexpected Token");
+
+    return true;
 }
 
 
@@ -231,7 +297,7 @@ bool Parser::ParseTemplateParameters(std::vector<std::string>& parameters)
         if (!ParseType(type)) throw std::exception("Unexpected Token");
         parameters.push_back(type);
         if (m_Tokenizer.ExpectSymbol(",")) continue;
-        break;
+        else break;
     }
     
     if (!m_Tokenizer.ExpectSymbol(">")) throw std::exception("Unexpected Token");
@@ -268,39 +334,3 @@ void Parser::SkipScope()
     throw std::exception("Unexpected End of Stream");
 }
 
-
-void Parser::SkipToSymbol(const std::string& value)
-{
-    Token token;
-    while (m_Tokenizer.GetToken(token))
-    {
-        if (token.Type == TokenType::Symbol && token.Value == value)
-        {
-            break;
-        }
-    }
-}
-
-
-void Parser::ParseMetadata(Metadata& metadata)
-{
-    if (!m_Tokenizer.ExpectSymbol("(")) throw std::exception("Unexpected Token");
-    if (!m_Tokenizer.ExpectSymbol(")"))
-    {
-        do
-        {
-            //Match an identifier
-            Token keyToken;
-            Token valueToken;
-            if (!m_Tokenizer.GetIdentifier(keyToken)) throw std::exception("Unexpected Token");
-            if (!m_Tokenizer.ExpectSymbol("=")) throw std::exception("Unexpected Token");
-            if (!m_Tokenizer.GetIdentifier(valueToken)) throw std::exception("Unexpected Token");
-
-            metadata.Set(keyToken.Value, valueToken.Value);
-
-        } while (m_Tokenizer.ExpectSymbol(","));
-
-        if (!m_Tokenizer.ExpectSymbol(")")) throw std::exception("Unexpected Token");
-    }
-
-}

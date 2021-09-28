@@ -162,7 +162,7 @@ TEST(ParserTests, ParseNonEmptyNamespace)
     std::string source = R"(
         namespace Namespace {
 
-            class Class;
+            class ForwardDeclaration;
 
             struct Struct {
                 int x;

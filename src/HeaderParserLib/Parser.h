@@ -6,13 +6,11 @@
 #include "HeaderParserLib/Token.h"
 #include "HeaderParserLib/Tokenizer.h"
 #include "HeaderParserLib/Metadata/Namespace.h"
-#include "HeaderParserLib/Metadata/Metadata.h"
+#include "HeaderParserLib/Metadata/Annotation.h"
 
 struct ParserConfiguration
 {
-    std::string ClassAnnotationIdentifier       = "CLASS";
-    std::string PropertyAnnotationIdentifier    = "PROPERTY";
-    std::string FunctionAnnotationIdentifier    = "FUNCTION";
+    std::vector<std::string> Annotations = { "CLASS", "PROPERTY", "FUNCTION" };
 };
 
 
@@ -25,19 +23,21 @@ public:
     void ParseProgram();
     bool ParseStatement();
 
+    // Standalone Statements
+
     bool ParseNamespace();
     bool ParseClass();
-    void ParseProperty();
+    bool SkipDeclaration();
+
+    // Utility Parsing Functions & Dependent Statements
+
+    bool ParseAnnotation(std::vector<Annotation>& annotations);
 
     bool ParseType(std::string& type);
-    bool ParseTypeDeclarator(std::string& type);
     bool ParseTemplateParameters(std::vector<std::string>& parameters);
     std::string ParseTypeDeclarator();
 
     void SkipScope();
-    void SkipToSymbol(const std::string& value);
-
-    void ParseMetadata(Metadata& metadata);
 
     inline ParserConfiguration& GetParserConfiguration() { return m_Configuration; }
     inline const Namespace& GetGblobalNamespace() const { return m_GlobalNamespace; }
@@ -50,6 +50,7 @@ private:
     inline Namespace* GetCurrentNamespace() const { return m_NamespaceStack.back(); }
     inline void PushNamespace(Namespace* nameSpace) { m_NamespaceStack.push_back(nameSpace); }
     inline void PopNamespace() { m_NamespaceStack.pop_back(); }
+
 
 private:
     Tokenizer m_Tokenizer;

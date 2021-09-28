@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-#include "HeaderParserLib/Metadata/Metadata.h"
+#include "HeaderParserLib/Metadata/Annotation.h"
 
 class Argument
 {
@@ -26,13 +26,13 @@ public:
     inline const std::string& GetReturnType() const { return m_ReturnType; }
     inline const std::string& GetName() const { return m_Name; }
     inline const std::vector<Argument>& GetArguments() const { return m_Arguments; }
-
-    inline const Metadata& GetMetadata() const { return m_Metadata; }
-    inline void SetMetadata(const Metadata& metadata) { m_Metadata = metadata; }
+    
+    inline const std::vector<Annotation>& GetAnnotations() const { return m_Annotations; }
+    inline void SetAnnotations(const std::vector<Annotation>& annotations) { m_Annotations = annotations; }
     
 private:
     std::string m_ReturnType;
     std::string m_Name;
     std::vector<Argument> m_Arguments;
-    Metadata m_Metadata;
+    std::vector<Annotation> m_Annotations;
 };
