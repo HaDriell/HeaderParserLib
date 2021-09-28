@@ -163,9 +163,11 @@ TEST(ParserTests, ParseNonEmptyNamespace)
         namespace Namespace {
 
             class ForwardDeclaration;
+            using Alias = ForwardDeclaration;
 
             struct Struct {
-                int x;
+                int x = 0;
+                ForwardDeclaration* ptr{ nullptr };
             };
 
         }

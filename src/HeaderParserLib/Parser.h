@@ -37,8 +37,6 @@ public:
     bool ParseTemplateParameters(std::vector<std::string>& parameters);
     std::string ParseTypeDeclarator();
 
-    void SkipScope();
-
     inline ParserConfiguration& GetParserConfiguration() { return m_Configuration; }
     inline const Namespace& GetGblobalNamespace() const { return m_GlobalNamespace; }
 

@@ -131,13 +131,15 @@ bool Parser::ParseClass()
 
 bool Parser::SkipDeclaration()
 {
+    size_t scopeDepth = 0;
     Token token;
     while (m_Tokenizer.GetToken(token))
     {
         if (token.Type == TokenType::Symbol)
         {
-            if (token.Value == ";") return true;
-            if (token.Value == "{") SkipScope();
+            if (token.Value == ";" && scopeDepth == 0) return true;
+            else if (token.Value == "{") scopeDepth++;
+            else if (token.Value == "}") scopeDepth--;
         }
     }
 
@@ -303,34 +305,3 @@ bool Parser::ParseTemplateParameters(std::vector<std::string>& parameters)
     if (!m_Tokenizer.ExpectSymbol(">")) throw std::exception("Unexpected Token");
     return true;
 }
-
-
-void Parser::SkipScope()
-{
-    uint32_t depth = 1;
-    Token token;
-
-    while (m_Tokenizer.GetToken(token))
-    {
-        if (token.Type == TokenType::Symbol)
-        {
-            if (token.Value == "{")
-            {
-                depth++;
-            }
-
-            if (token.Value == "}")
-            {
-                depth--;
-            }
-
-            if (depth == 0)
-            {
-                return;
-            }
-        }
-    }
-
-    throw std::exception("Unexpected End of Stream");
-}
-
