@@ -7,7 +7,7 @@ Namespace::Namespace(const std::string& name)
 }
 
 
-Class* Namespace::GetClass(const std::string& name)
+const Class* Namespace::GetClass(const std::string& name) const
 {
     auto it = m_Classes.find(name);
     if (it != m_Classes.end())
@@ -22,12 +22,12 @@ Class* Namespace::GetClass(const std::string& name)
 Class* Namespace::AddClass(const std::string& name)
 {
     assert(m_Classes.find(name) == m_Classes.end());
-    m_Classes.insert({name, name});
-    return GetClass(name);
+    m_Classes.insert({name, Class(name)});
+    return &m_Classes.find(name)->second;
 }
 
 
-Namespace* Namespace::GetNamespace(const std::string& name)
+const Namespace* Namespace::GetNamespace(const std::string& name) const
 {
     auto it = m_Namespaces.find(name);
     if (it != m_Namespaces.end())
@@ -41,6 +41,10 @@ Namespace* Namespace::GetNamespace(const std::string& name)
 
 Namespace* Namespace::AddNamespace(const std::string& name)
 {
-    m_Namespaces.insert({name, name});
-    return GetNamespace(name);
+    if (m_Namespaces.find(name) == m_Namespaces.end())
+    {
+        m_Namespaces.insert({name, Namespace(name)});
+    }
+
+    return &m_Namespaces.find(name)->second;
 }

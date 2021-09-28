@@ -178,6 +178,39 @@ TEST(ParserTests, ParseNonEmptyNamespace)
 
     ASSERT_TRUE(parser.ParseNamespace());
     ASSERT_TRUE(parser.GetGblobalNamespace().GetClasses().empty());
-    ASSERT_TRUE(!parser.GetGblobalNamespace().GetNamespaces().empty());
-    ASSERT_TRUE(!parser.GetGblobalNamespace().GetNamespaces().empty());
+    ASSERT_NE(parser.GetGblobalNamespace().GetNamespace("Namespace"), nullptr);
+}
+
+TEST(ParserTests, ParseClassesInNamespace)
+{
+    std::string source = R"(
+        namespace Namespace {
+
+            CLASS()
+            class AnnotatedClass {};
+
+            class ForwardDeclaredClass;
+            struct ForwardDeclaredStruct;
+
+            CLASS()
+            struct AnnotatedStruct {};
+
+            class NonAnnotatedClass {};
+            struct NonAnnotatedStruct {};
+        }
+    )";
+
+    Parser parser;
+    parser.SetSource(source);
+
+    ASSERT_TRUE(parser.ParseNamespace());
+    ASSERT_TRUE(parser.GetGblobalNamespace().GetClasses().empty());
+    const Namespace* ns = parser.GetGblobalNamespace().GetNamespace("Namespace"); 
+    ASSERT_NE(ns, nullptr);
+    ASSERT_NE(ns->GetClass("AnnotatedClass"), nullptr);
+    ASSERT_NE(ns->GetClass("AnnotatedStruct"), nullptr);
+    ASSERT_NE(ns->GetClass("NonAnnotatedClass"), nullptr);
+    ASSERT_NE(ns->GetClass("NonAnnotatedStruct"), nullptr);
+    ASSERT_EQ(ns->GetClass("ForwardDeclaredClass"), nullptr);
+    ASSERT_EQ(ns->GetClass("ForwardDeclaredStruct"), nullptr);
 }

@@ -137,7 +137,7 @@ bool Parser::SkipDeclaration()
     {
         if (token.Type == TokenType::Symbol)
         {
-            if (token.Value == ";" && scopeDepth == 0) return true;
+            if (scopeDepth == 0 && token.Value == ";") return true;
             else if (token.Value == "{") scopeDepth++;
             else if (token.Value == "}") scopeDepth--;
         }
