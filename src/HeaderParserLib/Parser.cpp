@@ -147,13 +147,11 @@ bool Parser::ParseField()
     {
     }
 
-    //Consume prefixes
-    bool isStatic = false;
-    bool isMutable = false;
+    //TODO : add these informations to the Field metadata
     while (true)
     {
-        if (m_Tokenizer.ExpectIdentifier("static"))     { isStatic = true; continue; }
-        if (m_Tokenizer.ExpectIdentifier("mutable"))    { isMutable = true; continue; }
+        if (m_Tokenizer.ExpectIdentifier("static")) continue;
+        if (m_Tokenizer.ExpectIdentifier("mutable")) continue;
         break;
     }
 
@@ -176,6 +174,40 @@ bool Parser::ParseField()
     field->SetAnnotations(annotations);
     
     return true;
+}
+
+
+bool Parser::ParseFunction()
+{
+    size_t position = m_Tokenizer.GetPosition();
+
+    std::vector<Annotation> annotations;
+    while (ParseAnnotation(annotations))
+    {
+    }
+
+    //TODO : add these informations to the Function Metadata
+    while (true)
+    {
+        if (m_Tokenizer.ExpectIdentifier("virtual")) continue;
+        if (m_Tokenizer.ExpectIdentifier("constexpr")) continue;
+        if (m_Tokenizer.ExpectIdentifier("inline")) continue;
+        if (m_Tokenizer.ExpectIdentifier("virtual")) continue;
+        break;
+    }
+
+    std::string returnType;
+    if (!ParseType(returnType))
+    {
+        m_Tokenizer.SetPosition(position);
+        return false;
+    }
+
+    Token functionNameToken;
+    if (!m_Tokenizer.GetIdentifier(functionNameToken)) throw std::exception("Unexpected Token");
+
+    if (!m_Tokenizer.ExpectSymbol("(")) throw std::exception("Unexpected Token");
+
 }
 
 
@@ -334,6 +366,36 @@ std::string Parser::ParseTypeDeclarator()
     }
 
     return declarator;
+}
+
+
+bool Parser::ParseFunctionArguments(std::vector<Argument>& arguments)
+{
+    if (!m_Tokenizer.ExpectSymbol("(")) return false; // Not a function argument declaration
+    if (m_Tokenizer.ExpectSymbol(")")) return true; // empty pack
+
+    //Parse Argument pack
+    while (true)
+    {
+        std::string type;
+        std::string name;
+        if (!ParseType(type)) throw std::exception("Unexpected Token");
+        
+        Token nameToken;
+        if (m_Tokenizer.GetIdentifier(nameToken)) // Identifier is optional
+        {
+            name = nameToken.Value;
+            //TODO : add support for default value ?
+        }
+
+        arguments.emplace_back(type, name);
+        
+        if (m_Tokenizer.ExpectSymbol(",")) continue;
+        else break;
+    }
+
+    if (!m_Tokenizer.ExpectSymbol(")")) throw std::exception("Unexpected Token");
+    return true;
 }
 
 

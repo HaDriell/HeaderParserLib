@@ -28,6 +28,7 @@ public:
     bool ParseNamespace();
     bool ParseClass();
     bool ParseField();
+    bool ParseFunction();
     bool SkipDeclaration();
 
     // Utility Parsing Functions & Dependent Statements
@@ -37,6 +38,8 @@ public:
     bool ParseType(std::string& type);
     bool ParseTemplateParameters(std::vector<std::string>& parameters);
     std::string ParseTypeDeclarator();
+
+    bool ParseFunctionArguments(std::vector<Argument>& arguments);
 
     inline ParserConfiguration& GetParserConfiguration() { return m_Configuration; }
     inline const Namespace& GetGblobalNamespace() const { return m_GlobalNamespace; }
