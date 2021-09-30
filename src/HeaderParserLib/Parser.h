@@ -27,6 +27,7 @@ public:
 
     bool ParseNamespace();
     bool ParseClass();
+    bool ParseField();
     bool SkipDeclaration();
 
     // Utility Parsing Functions & Dependent Statements
@@ -41,11 +42,11 @@ public:
     inline const Namespace& GetGblobalNamespace() const { return m_GlobalNamespace; }
 
 private:
-    inline Class* GetCurrentClass() const { return m_ClassStack.back(); }
+    inline Class* GetCurrentClass() const { return m_ClassStack.empty() ? nullptr : m_ClassStack.back(); }
     inline void PushClass(Class* clazz) { m_ClassStack.push_back(clazz); }
     inline void PopClass() { m_ClassStack.pop_back(); }
 
-    inline Namespace* GetCurrentNamespace() const { return m_NamespaceStack.back(); }
+    inline Namespace* GetCurrentNamespace() const { return m_NamespaceStack.empty() ? nullptr : m_NamespaceStack.back(); }
     inline void PushNamespace(Namespace* nameSpace) { m_NamespaceStack.push_back(nameSpace); }
     inline void PopNamespace() { m_NamespaceStack.pop_back(); }
 

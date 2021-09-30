@@ -157,13 +157,95 @@ TEST(ParserTests, ParseEmptyNamespace)
     ASSERT_TRUE(!parser.GetGblobalNamespace().GetNamespaces().empty());
 }
 
-TEST(ParserTests, ParseNonEmptyNamespace)
+TEST(ParserTests, ParseForwardDeclaredClass)
+{
+    std::string source = R"(
+        class ForwardDeclaration;
+    )";
+
+    Parser parser;
+    parser.SetSource(source);
+
+    ASSERT_TRUE(parser.ParseClass());
+    ASSERT_TRUE(parser.GetGblobalNamespace().GetClasses().empty());
+}
+
+TEST(ParserTests, ParseEmptyClass)
+{
+    std::string source = R"(
+        class EmptyClass {};
+    )";
+
+    Parser parser;
+    parser.SetSource(source);
+
+    ASSERT_TRUE(parser.ParseClass());
+    ASSERT_NE(parser.GetGblobalNamespace().GetClass("EmptyClass"), nullptr);
+}
+
+TEST(ParserTests, ParseClassWithFields)
+{
+    std::string source = R"(
+        class ClassWithFields {
+            int a;
+            std::string b;
+        };
+    )";
+
+    Parser parser;
+    parser.SetSource(source);
+
+    ASSERT_TRUE(parser.ParseClass());
+    const Class* clazz = parser.GetGblobalNamespace().GetClass("ClassWithFields");
+    ASSERT_NE(clazz, nullptr);
+    ASSERT_NE(clazz->GetField("a"), nullptr);
+    ASSERT_NE(clazz->GetField("b"), nullptr);
+}
+
+TEST(ParserTests, ParseClassWithAnnotatedField)
+{
+    std::string source = R"(
+        class ClassWithFields {
+            int a;
+
+            PROPERTY()
+            Field m_Field;
+
+            std::string b;
+        };
+    )";
+
+    Parser parser;
+    parser.SetSource(source);
+
+    ASSERT_TRUE(parser.ParseClass());
+    const Class* clazz = parser.GetGblobalNamespace().GetClass("ClassWithFields");
+    ASSERT_NE(clazz, nullptr);
+    const Field* field = clazz->GetField("m_Field");
+    ASSERT_NE(field, nullptr);
+    ASSERT_FALSE(field->GetAnnotations().empty());
+}
+
+TEST(ParserTests, ParseEmptyAnnotatedClass)
+{
+    std::string source = R"(
+        CLASS()
+        class EmptyClass {};
+    )";
+
+    Parser parser;
+    parser.SetSource(source);
+
+    ASSERT_TRUE(parser.ParseClass());
+    ASSERT_NE(parser.GetGblobalNamespace().GetClass("EmptyClass"), nullptr);
+}
+
+TEST(ParserTests, ParseNamespaceWithClasses)
 {
     std::string source = R"(
         namespace Namespace {
 
             class ForwardDeclaration;
-            using Alias = ForwardDeclaration;
 
             struct Struct {
                 int x = 0;
@@ -181,7 +263,7 @@ TEST(ParserTests, ParseNonEmptyNamespace)
     ASSERT_NE(parser.GetGblobalNamespace().GetNamespace("Namespace"), nullptr);
 }
 
-TEST(ParserTests, ParseClassesInNamespace)
+TEST(ParserTests, ParseNamespaceWithAnnotatedClasses)
 {
     std::string source = R"(
         namespace Namespace {

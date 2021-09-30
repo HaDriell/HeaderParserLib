@@ -6,10 +6,23 @@ Class::Class(const std::string& name)
 {
 }
 
+const Field* Class::GetField(const std::string& name) const
+{
+    auto it = m_Fields.find(name);
+    if (it != m_Fields.end())
+    {
+        return &it->second;
+    }
+    return nullptr;
+}
 
 Field* Class::AddField(const std::string& type, const std::string& name)
 {
-    return &m_Fields.emplace_back(type, name);
+    if (m_Fields.find(name) == m_Fields.end())
+    {
+        m_Fields.insert({name, Field(type, name)});
+    }
+    return &m_Fields.find(name)->second;
 }
 
 

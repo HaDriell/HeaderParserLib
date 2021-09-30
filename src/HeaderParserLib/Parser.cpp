@@ -36,7 +36,8 @@ bool Parser::ParseStatement()
 {
     if (ParseNamespace()) return true;
     if (ParseClass()) return true;
-    
+    if (ParseField()) return true;
+
     return SkipDeclaration();
 }
 
@@ -68,6 +69,7 @@ bool Parser::ParseNamespace()
     return true;
 }
 
+
 bool Parser::ParseClass()
 {
     size_t position = m_Tokenizer.GetPosition();
@@ -78,7 +80,11 @@ bool Parser::ParseClass()
     }
 
     //Expect 'class' or 'struct' to begin parsing a class
-    if (!m_Tokenizer.ExpectIdentifier("class") && !m_Tokenizer.ExpectIdentifier("struct")) return false;
+    if (!m_Tokenizer.ExpectIdentifier("class") && !m_Tokenizer.ExpectIdentifier("struct"))
+    {
+        m_Tokenizer.SetPosition(position);
+        return false;
+    }
 
     //Read the ClassName
     //Look for the ClassName. It's the last Identifier found before Symbols ':' or '{'
@@ -91,8 +97,8 @@ bool Parser::ParseClass()
     //That's a forward declaration !
     if (m_Tokenizer.ExpectSymbol(";"))
     {
-        m_Tokenizer.SetPosition(position);
-        return false;
+        if (!annotations.empty()) throw std::exception("Annotations on Forward Declarations is not supported.");
+        return true;
     }
 
     std::vector<std::string> parents;
@@ -125,6 +131,50 @@ bool Parser::ParseClass()
     }
 
     PopClass();
+    return true;
+}
+
+
+bool Parser::ParseField()
+{
+    Class* clazz = GetCurrentClass();
+    if (clazz == nullptr) return false; // Not in a Class
+
+    size_t position = m_Tokenizer.GetPosition();
+
+    std::vector<Annotation> annotations;
+    while (ParseAnnotation(annotations))
+    {
+    }
+
+    //Consume prefixes
+    bool isStatic = false;
+    bool isMutable = false;
+    while (true)
+    {
+        if (m_Tokenizer.ExpectIdentifier("static"))     { isStatic = true; continue; }
+        if (m_Tokenizer.ExpectIdentifier("mutable"))    { isMutable = true; continue; }
+        break;
+    }
+
+    std::string type;
+    if (!ParseType(type))
+    {
+        m_Tokenizer.SetPosition(position);
+        return false;
+    }
+
+    Token fieldNameToken;
+    if (!m_Tokenizer.GetIdentifier(fieldNameToken)) throw std::exception("Unexpected Token");
+
+    //TODO : parse raw array expressions here
+
+    // Skip end of statement (possible affectations, initialization scopes, constructor, ...)
+    if (!SkipDeclaration()) throw std::exception("Unexpected End of Stream");
+
+    Field* field = clazz->AddField(type, fieldNameToken.Value);
+    field->SetAnnotations(annotations);
+    
     return true;
 }
 
