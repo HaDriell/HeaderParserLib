@@ -167,7 +167,7 @@ TEST(ParserTests, ParseForwardDeclaredClass)
     parser.SetSource(source);
 
     ASSERT_TRUE(parser.ParseClass());
-    ASSERT_TRUE(parser.GetGblobalNamespace().GetClasses().empty());
+    ASSERT_EQ(parser.GetGblobalNamespace().GetClass("ForwardDeclaration"), nullptr);
 }
 
 TEST(ParserTests, ParseEmptyClass)
@@ -259,8 +259,10 @@ TEST(ParserTests, ParseNamespaceWithClasses)
     parser.SetSource(source);
 
     ASSERT_TRUE(parser.ParseNamespace());
-    ASSERT_TRUE(parser.GetGblobalNamespace().GetClasses().empty());
-    ASSERT_NE(parser.GetGblobalNamespace().GetNamespace("Namespace"), nullptr);
+    const Namespace* ns = parser.GetGblobalNamespace().GetNamespace("Namespace");
+    ASSERT_NE(ns, nullptr);
+    ASSERT_EQ(ns->GetClass("ForwardDeclaration"), nullptr);
+    ASSERT_NE(ns->GetClass("Struct"), nullptr);
 }
 
 TEST(ParserTests, ParseNamespaceWithAnnotatedClasses)
