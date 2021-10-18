@@ -208,6 +208,7 @@ bool Parser::ParseFunction()
 
     if (!m_Tokenizer.ExpectSymbol("(")) throw std::exception("Unexpected Token");
 
+    return true;
 }
 
 

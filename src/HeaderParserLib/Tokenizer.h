@@ -67,7 +67,7 @@ public:
 
     /// Tries to parse a Symbol from the Source Stream
     /// Rollbacks the Source Stream on fail
-    bool GetSymbol(Token& token);
+    bool GetSymbol(Token& token, uint32_t expectedSymbolSize = 0);
 
     /// Tries to Get every type of token
     /// Fails if no token type was successfully parsed

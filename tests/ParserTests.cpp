@@ -112,6 +112,20 @@ TEST(ParserTests, ParseTemplateType)
     ASSERT_EQ(type, "std::vector<std::string>");
 }
 
+TEST(ParserTests, ParseNestedTemplateType)
+{
+    std::string source = R"(
+        std::map<std::string, std::vector<int32_t>> 
+    )";
+
+    Parser parser;
+    parser.SetSource(source);
+
+    std::string type;
+    ASSERT_TRUE(parser.ParseType(type));
+    ASSERT_EQ(type, "std::map<std::string, std::vector<int32_t>>");
+}
+
 TEST(ParserTests, ParsePointerType)
 {
     std::string source = R"(
